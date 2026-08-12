@@ -100,6 +100,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | OI-29 | 0.6 | risk | med | The T0 smoke job is `continue-on-error: true`. Hosted runners have no GPU and fall back to WARP software D3D11; whether OBS initialises there is unknown. Left non-blocking so it reports rather than reddening CI. Make it required once a few runs prove it stable | — | open |
 | OI-30 | 0.7 | bug | low | GPU utilisation reads 0 throughout the AMF runs — the `GPU Engine(*engtype_VideoEncode)` counter evidently exposes the AMD encode engine under a different instance name. The figure is missing, not zero. Fix before the real-machine run | 0.7 rerun | open |
 | OI-31 | 0.7 | risk | med | The benchmark measures **encode only** — no capture, compositing, overlay rendering or muxing running alongside, and 10-second runs so no thermal throttling. Real recording will have materially less headroom than these figures suggest | 6.6, 8.8 | open |
+| OI-32 | 1.1 | bug | **high** | **The test harness was never committed.** Root `.gitignore` is an allowlist (`/*` then `!/dir`) and `tools/` was not on it, so everything added under `tools/subsea-tests` in 0.5–0.7 was invisible to git — `git status` reported a clean tree throughout. `THIRD_PARTY_NOTICES.md` (the GPLv2 source offer) was ignored the same way. CI would have failed on its first run. Both allowlisted in commit `4fe7e82d1` | — | ✅ **closed 2026-08-13** |
 
 ---
 
