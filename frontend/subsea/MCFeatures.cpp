@@ -108,8 +108,8 @@ const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{
 
 	{Feature::IdianPlayground, "IdianPlayground", false, "Upstream widget-gallery developer surface", {"idianPlayground"}},
 
-	{Feature::ScenesDock, "ScenesDock", true, "Scenes dock (Phase 1 replaces it with Layers)", {"scenesDock"}},
-	{Feature::SourcesDock, "SourcesDock", true, "Sources dock (Phase 1 replaces it with Layers)", {"sourcesDock"}},
+	{Feature::ScenesDock, "ScenesDock", false, "Scenes dock (Phase 1 replaces it with Layers)", {"scenesDock"}},
+	{Feature::SourcesDock, "SourcesDock", false, "Sources dock (Phase 1 replaces it with Layers)", {"sourcesDock"}},
 	{Feature::LayersDock, "LayersDock", true, "The Layers tree: Canvases and their Elements in one panel", {"layersDock"}},
 }};
 

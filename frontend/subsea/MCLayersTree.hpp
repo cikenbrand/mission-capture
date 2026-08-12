@@ -18,6 +18,7 @@
 #pragma once
 
 #include <obs.hpp>
+#include <obs-frontend-api.h>
 
 #include <QTreeView>
 
@@ -43,6 +44,7 @@ class MCLayersTree : public QTreeView {
 
 public:
 	explicit MCLayersTree(QWidget *parent = nullptr);
+	~MCLayersTree() override;
 
 	MCLayersModel *layersModel() const { return model_; }
 
@@ -66,8 +68,17 @@ protected:
 
 private slots:
 	void onSelectionChanged();
+	/* libobs (usually the preview) changed the selection. */
+	void syncSelectionFromLibobs();
+	/* The program Canvas changed; repaint markers and follow it. */
+	void onProgramCanvasChanged();
+	/* A Job switch replaced every scene; rebuild once rather than tracking
+	 * the storm of create/remove signals. */
+	void onJobChanged();
 
 private:
+	static void frontendEvent(enum obs_frontend_event event, void *data);
+
 	/* Returns true if the press landed on a toggle and was consumed. */
 	bool handleToggleClick(const QModelIndex &index, const QPoint &pos);
 	void removeSelected();

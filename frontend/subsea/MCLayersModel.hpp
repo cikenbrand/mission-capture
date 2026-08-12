@@ -81,6 +81,8 @@ public:
 		SourceIdRole,
 		/* Canvas only: true if it is the program Canvas. */
 		ProgramRole,
+		/* Element only: obs_sceneitem_selected. Kept in step with the preview. */
+		SelectedRole,
 	};
 
 	enum class Kind { Canvas, Element };
@@ -123,6 +125,13 @@ public:
 	/* Rebuilds everything. Used on Job load and as the last-resort fallback. */
 	void reload();
 
+	/* Repaints the program marker on every Canvas row. Nothing in libobs
+	 * signals "the program Canvas changed", so the frontend event drives it. */
+	void refreshProgramMarkers();
+
+	/* Row for a scene item, or an invalid index. */
+	QModelIndex indexOfElement(obs_sceneitem_t *item) const;
+
 	/* Convenience mutations the view calls; each ends up back here through a
 	 * libobs signal, so the model is never updated speculatively. */
 	void toggleVisible(const QModelIndex &index);
@@ -133,6 +142,9 @@ signals:
 	 * can select it in its new home. */
 	void elementMoved(const QModelIndex &newIndex);
 
+	/* libobs -- usually the preview -- changed which Elements are selected. */
+	void selectionChangedExternally();
+
 private slots:
 	/* All of these already run on the Qt thread -- the libobs handlers below
 	 * marshal to them. */
@@ -141,6 +153,7 @@ private slots:
 	void onCanvasRenamed(OBSSource source);
 	void onElementsChanged(OBSScene scene);
 	void onElementFlagChanged(OBSScene scene, OBSSceneItem item);
+	void onElementSelectionChanged(OBSScene scene, OBSSceneItem item);
 
 private:
 	struct ElementNode;
@@ -179,6 +192,7 @@ private:
 	static void itemReordered(void *data, calldata_t *cd);
 	static void itemVisible(void *data, calldata_t *cd);
 	static void itemLocked(void *data, calldata_t *cd);
+	static void itemSelected(void *data, calldata_t *cd);
 
 	std::vector<std::unique_ptr<CanvasNode>> canvases_;
 	std::vector<OBSSignal> globalSignals_;

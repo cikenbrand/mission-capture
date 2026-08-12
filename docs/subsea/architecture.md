@@ -135,12 +135,34 @@ in `OBSBasic_SceneItems.cpp`). **It does not reimplement them.** That is what ke
 `OBSBasic_Scenes.cpp` and `OBSBasic_SceneItems.cpp` — 2459 lines between them — nearly untouched
 and mergeable.
 
-### 2.4 The preview-selection sync hazard
+### 2.4 Preview-selection sync — resolved without a seam
 
-`OBSBasicPreview` maintains its own selection state and calls back into the Sources list. With the
-Sources list gone, those callbacks must be redirected to `MCLayersTree`. Selection can now change
-from three directions (tree, preview, hotkey) and it is easy to build an infinite signal loop.
-Use a re-entrancy guard from the start rather than debugging it later.
+The plan assumed `OBSBasicPreview` would have to be modified to notify the tree, and called that
+the most merge-fragile change in the fork. It turned out to be unnecessary.
+
+The preview does not push selection to a widget. It calls `obs_sceneitem_select()`, and libobs
+emits `item_select` / `item_deselect` on the scene. Upstream's `SourceTree` listens to exactly
+that. So the Layers tree listens too, and **libobs is the single source of truth** that the
+preview, hotkeys and the tree all read from and write to:
+
+```
+preview click ──▶ obs_sceneitem_select() ──▶ item_select signal ──▶ MCLayersModel ──▶ tree
+tree click    ──▶ obs_sceneitem_select() ──▶ item_select signal ──▶ (preview reads the same state)
+```
+
+Seam #11 is therefore struck from §8: no upstream file is touched for selection at all.
+
+Two things still need care:
+
+- **The loop is real.** Both directions run through the same signal, so a re-entrancy guard is
+  mandatory, not defensive. `MCLayersTree::settingSelection_` wraps every path.
+- **Program-Canvas changes are not a libobs signal.** Nothing announces "the program Canvas
+  changed", so `OBS_FRONTEND_EVENT_SCENE_CHANGED` drives the marker repaint. Without it the marker
+  only moves when the dock repaints for some other reason.
+
+Switching Canvas likewise uses `obs_frontend_set_current_scene()` rather than
+`OBSBasic::SetCurrentScene()`, which is private — the public frontend API does the same job
+without widening an upstream header.
 
 ---
 
@@ -518,7 +540,7 @@ The complete list of upstream files this plan modifies. **Keep it short. Review 
 | 8 | `frontend/obs-main.cpp` | New CLI flags (`--dump-ui-manifest`, `--dump-channels`) | 0,3 |
 | 9 | `frontend/forms/OBSBasic.ui` | Layers dock, overlay-mode toggle, Record/Clip panel entries | 1,4,6,7 |
 | 10 | `frontend/widgets/OBSBasic_Docks.cpp` | Register Layers and our other docks; retire Scenes/Sources docks behind a flag | 1,4,6 |
-| 11 | `frontend/widgets/OBSBasicPreview.cpp` | Redirect selection callbacks to `MCLayersTree` | 1 |
+| ~~11~~ | ~~`frontend/widgets/OBSBasicPreview.cpp`~~ | **Not needed.** Selection sync goes through libobs instead — see §2.4 | — |
 | 12 | `frontend/widgets/OBSBasic_Recording.cpp` | Notify `MCRecordingManager` on main record start/stop | 6, 7 |
 | 13 | `frontend/widgets/OBSBasic_SceneCollections.cpp` | Save/load overlay assignments and Job metadata | 1,4 |
 | 14 | `frontend/data/locale/en-US.ini` | Canvas/Element/Layers/Job/Rig strings | 1 |

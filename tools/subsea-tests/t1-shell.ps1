@@ -150,6 +150,16 @@ if (Test-Path $layersManifest) {
                     "Layers dock is titled 'Layers' (got '$($layersDock[0].title)')" 'P1-AC1'
     }
 
+    # --- P1-AC9: the docks Layers replaces are gone --------------------------
+    foreach ($retired in @('scenesDock', 'sourcesDock')) {
+        $d = @($lm.docks | Where-Object { $_.name -eq $retired })
+        # They stay in the widget hierarchy on purpose -- SaveSceneListOrder()
+        # still reads the Scenes list to persist Canvas order -- but must not be
+        # visible.
+        Assert-True (($d.Count -eq 0) -or (-not $d[0].visible)) `
+                    "'$retired' is retired from the UI" 'P1-AC9'
+    }
+
     # Exactly one Canvas is the program Canvas.
     $program = @($canvases | Where-Object { $_.program })
     Assert-True ($program.Count -eq 1 -and $program[0].name -eq 'Camera 1') `

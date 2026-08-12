@@ -20,11 +20,13 @@
 #include "MCLayersModel.hpp"
 
 #include <OBSApp.hpp>
+#include <widgets/OBSBasic.hpp>
 #include <qt-wrappers.hpp>
 
 #include <QContextMenuEvent>
 #include <QHeaderView>
 #include <QKeyEvent>
+#include <QItemSelection>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QScopedValueRollback>
@@ -61,6 +63,91 @@ MCLayersTree::MCLayersTree(QWidget *parent) : QTreeView(parent)
 	connect(model_, &QAbstractItemModel::rowsInserted, this, [this]() { expandAll(); });
 
 	connect(selectionModel(), &QItemSelectionModel::selectionChanged, this, &MCLayersTree::onSelectionChanged);
+
+	/* Preview -> tree. The preview calls obs_sceneitem_select(); libobs emits
+	 * item_select; the model turns that into this. No upstream file is touched
+	 * to keep the two in step, which avoids the merge-fragile seam the plan
+	 * expected here. */
+	connect(model_, &MCLayersModel::selectionChangedExternally, this, &MCLayersTree::syncSelectionFromLibobs);
+
+	/* Nothing in libobs announces "the program Canvas changed", so the
+	 * frontend event has to. Without this the program marker only moves when
+	 * the dock happens to repaint for another reason. */
+	obs_frontend_add_event_callback(&MCLayersTree::frontendEvent, this);
+}
+
+MCLayersTree::~MCLayersTree()
+{
+	obs_frontend_remove_event_callback(&MCLayersTree::frontendEvent, this);
+}
+
+void MCLayersTree::frontendEvent(enum obs_frontend_event event, void *data)
+{
+	auto *self = static_cast<MCLayersTree *>(data);
+
+	switch (event) {
+	case OBS_FRONTEND_EVENT_SCENE_CHANGED:
+	case OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED:
+		QMetaObject::invokeMethod(self, "onProgramCanvasChanged", Qt::QueuedConnection);
+		break;
+
+	case OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED:
+	case OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP:
+		/* A Job switch tears down every scene and rebuilds it, driving
+		 * dozens of create/remove signals through the model at once. Rather
+		 * than trust that storm to land in the right order, rebuild once the
+		 * dust settles. */
+		QMetaObject::invokeMethod(self, "onJobChanged", Qt::QueuedConnection);
+		break;
+
+	default:
+		break;
+	}
+}
+
+void MCLayersTree::onJobChanged()
+{
+	const QScopedValueRollback<bool> guard(settingSelection_, true);
+	model_->reload();
+	expandAll();
+}
+
+void MCLayersTree::onProgramCanvasChanged()
+{
+	model_->refreshProgramMarkers();
+
+	OBSSourceAutoRelease current = obs_frontend_get_current_scene();
+	selectCanvas(obs_scene_from_source(current));
+}
+
+void MCLayersTree::syncSelectionFromLibobs()
+{
+	if (settingSelection_) {
+		return;
+	}
+
+	const QScopedValueRollback<bool> guard(settingSelection_, true);
+
+	/* Mirror libobs' selection state onto the Qt selection. libobs is the
+	 * single source of truth: the preview, hotkeys and this tree all write to
+	 * it, and all three read back from it. */
+	QItemSelection selection;
+	for (int c = 0; c < model_->rowCount(); c++) {
+		const QModelIndex canvasIndex = model_->index(c, 0);
+		for (int e = 0; e < model_->rowCount(canvasIndex); e++) {
+			const QModelIndex elementIndex = model_->index(e, 0, canvasIndex);
+			if (elementIndex.data(MCLayersModel::SelectedRole).toBool()) {
+				selection.select(elementIndex, elementIndex);
+			}
+		}
+	}
+
+	if (selection.isEmpty()) {
+		return;
+	}
+
+	selectionModel()->select(selection, QItemSelectionModel::ClearAndSelect);
+	selectionModel()->setCurrentIndex(selection.indexes().first(), QItemSelectionModel::NoUpdate);
 }
 
 // MARK: - Selection
@@ -78,14 +165,43 @@ void MCLayersTree::onSelectionChanged()
 
 	const QScopedValueRollback<bool> guard(settingSelection_, true);
 
-	if (model_->kindOf(index) == MCLayersModel::Kind::Canvas) {
-		emit canvasActivated(model_->canvasAt(index));
-	} else {
-		/* Selecting an Element implies its Canvas: the preview has to be
-		 * showing the right Canvas for the selection to mean anything. */
-		emit canvasActivated(model_->canvasAt(index));
-		emit elementActivated(model_->elementAt(index));
+	/* Selecting an Element implies its Canvas -- the preview has to be showing
+	 * the right Canvas for the selection to mean anything.
+	 *
+	 * Switching goes through the public frontend API rather than
+	 * OBSBasic::SetCurrentScene(), which is private. That keeps this off the
+	 * seam list entirely: obs_frontend_set_current_scene() is a stable public
+	 * interface, and reaching into OBSBasic would have meant widening its
+	 * header. */
+	OBSScene scene = model_->canvasAt(index);
+	if (scene) {
+		OBSSourceAutoRelease current = obs_frontend_get_current_scene();
+		obs_source_t *wanted = obs_scene_get_source(scene);
+		if (current.Get() != wanted) {
+			obs_frontend_set_current_scene(wanted);
+		}
 	}
+	emit canvasActivated(scene);
+
+	if (model_->kindOf(index) == MCLayersModel::Kind::Canvas) {
+		return;
+	}
+
+	/* Tree -> preview. Writing selection into libobs is what makes the
+	 * transform gizmos appear on the right Element; the preview reads the same
+	 * state we do. */
+	const QModelIndexList chosen = selectionModel()->selectedIndexes();
+	const QModelIndex canvasIndex = model_->parent(index);
+
+	for (int row = 0; row < model_->rowCount(canvasIndex); row++) {
+		const QModelIndex candidate = model_->index(row, 0, canvasIndex);
+		OBSSceneItem item = model_->elementAt(candidate);
+		if (item) {
+			obs_sceneitem_select(item, chosen.contains(candidate));
+		}
+	}
+
+	emit elementActivated(model_->elementAt(index));
 }
 
 void MCLayersTree::selectCanvas(obs_scene_t *scene)
@@ -216,12 +332,28 @@ void MCLayersTree::keyPressEvent(QKeyEvent *event)
 
 void MCLayersTree::removeSelected()
 {
-	/* Deliberately not implemented here yet: removal has to go through
-	 * OBSBasic so that it lands on the undo stack and gets the same
-	 * confirmation as the rest of the app. Task 1.4 wires it up. Doing it
-	 * directly against libobs would give the operator an unundoable delete,
-	 * which is exactly the wrong failure mode mid-dive. */
-	blog(LOG_DEBUG, "[MCLayers] Remove requested; wiring lands in task 1.4");
+	OBSBasic *main = OBSBasic::Get();
+	const QModelIndex index = currentIndex();
+	if (!main || !index.isValid()) {
+		return;
+	}
+
+	/* Trigger upstream's own action rather than calling libobs directly. That
+	 * one confirms with the user, pushes onto the undo stack, and handles
+	 * multi-selection -- an unundoable delete mid-dive is exactly the wrong
+	 * failure mode. Found by objectName so a rename degrades to "Delete does
+	 * nothing" rather than to a silent unconfirmed delete.
+	 *
+	 * The actions operate on the current Canvas and its selected items, which
+	 * onSelectionChanged() has already written into libobs. */
+	const char *actionName = (model_->kindOf(index) == MCLayersModel::Kind::Canvas) ? "actionRemoveScene"
+										       : "actionRemoveSource";
+
+	if (QAction *action = main->findChild<QAction *>(QString::fromUtf8(actionName))) {
+		action->trigger();
+	} else {
+		blog(LOG_WARNING, "[MCLayers] '%s' not found; Delete did nothing", actionName);
+	}
 }
 
 void MCLayersTree::contextMenuEvent(QContextMenuEvent *event)

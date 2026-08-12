@@ -23,9 +23,11 @@
 
 #include <QDataStream>
 #include <QMetaObject>
+#include <QListWidget>
 #include <QMimeData>
 
 #include <algorithm>
+#include <string>
 
 #include "moc_MCLayersModel.cpp"
 
@@ -85,6 +87,34 @@ void MCLayersModel::reload()
 	std::vector<OBSSource> scenes;
 	OBSCanvasAutoRelease mainCanvas = obs_get_main_canvas(); /* strong ref */
 	obs_canvas_enum_scenes(mainCanvas, collectScene, &scenes);
+
+	/* libobs enumerates in creation order, but the *saved* Canvas order lives
+	 * in upstream's Scenes list widget -- SaveSceneListOrder() walks it to
+	 * build the "scene_order" array in the Job file. That widget stays alive
+	 * behind its feature flag precisely so persistence keeps working
+	 * untouched, so the tree mirrors it rather than inventing an order that
+	 * would not survive a save. Found by name, so a rename degrades to
+	 * creation order rather than breaking. */
+	if (OBSBasic *main = OBSBasic::Get()) {
+		if (auto *sceneList = main->findChild<QListWidget *>(QStringLiteral("scenes"))) {
+			std::vector<std::string> order;
+			order.reserve(static_cast<size_t>(sceneList->count()));
+			for (int i = 0; i < sceneList->count(); i++) {
+				order.push_back(sceneList->item(i)->text().toStdString());
+			}
+
+			std::stable_sort(scenes.begin(), scenes.end(),
+					 [&order](const OBSSource &a, const OBSSource &b) {
+						 const auto rank = [&order](const OBSSource &s) {
+							 const char *name = obs_source_get_name(s);
+							 const auto it = std::find(order.begin(), order.end(),
+										   name ? name : "");
+							 return std::distance(order.begin(), it);
+						 };
+						 return rank(a) < rank(b);
+					 });
+		}
+	}
 
 	int row = 0;
 	for (const OBSSource &sceneSource : scenes) {
@@ -307,6 +337,8 @@ QVariant MCLayersModel::data(const QModelIndex &index, int role) const
 		return obs_sceneitem_visible(element->item);
 	case LockedRole:
 		return obs_sceneitem_locked(element->item);
+	case SelectedRole:
+		return obs_sceneitem_selected(element->item);
 	case SourceIdRole:
 		return QString::fromUtf8(obs_source_get_id(source));
 	default:
@@ -597,6 +629,12 @@ void MCLayersModel::connectCanvasSignals(CanvasNode *node, obs_scene_t *scene)
 	node->itemSignals.emplace_back(handler, "refresh", &MCLayersModel::itemReordered, this);
 	node->itemSignals.emplace_back(handler, "item_visible", &MCLayersModel::itemVisible, this);
 	node->itemSignals.emplace_back(handler, "item_locked", &MCLayersModel::itemLocked, this);
+
+	/* This is what makes preview selection reach the tree. The preview calls
+	 * obs_sceneitem_select(), libobs emits these, and the tree follows -- so
+	 * no upstream file has to be modified to keep the two in step. */
+	node->itemSignals.emplace_back(handler, "item_select", &MCLayersModel::itemSelected, this);
+	node->itemSignals.emplace_back(handler, "item_deselect", &MCLayersModel::itemSelected, this);
 }
 
 void MCLayersModel::sourceCreated(void *data, calldata_t *cd)
@@ -664,6 +702,15 @@ void MCLayersModel::itemLocked(void *data, calldata_t *cd)
 	auto *item = static_cast<obs_sceneitem_t *>(calldata_ptr(cd, "item"));
 	QMetaObject::invokeMethod(static_cast<MCLayersModel *>(data), "onElementFlagChanged", Qt::QueuedConnection,
 				  Q_ARG(OBSScene, OBSScene(scene)), Q_ARG(OBSSceneItem, OBSSceneItem(item)));
+}
+
+void MCLayersModel::itemSelected(void *data, calldata_t *cd)
+{
+	auto *scene = static_cast<obs_scene_t *>(calldata_ptr(cd, "scene"));
+	auto *item = static_cast<obs_sceneitem_t *>(calldata_ptr(cd, "item"));
+	QMetaObject::invokeMethod(static_cast<MCLayersModel *>(data), "onElementSelectionChanged",
+				  Qt::QueuedConnection, Q_ARG(OBSScene, OBSScene(scene)),
+				  Q_ARG(OBSSceneItem, OBSSceneItem(item)));
 }
 
 // MARK: - Qt-thread handlers
@@ -744,6 +791,49 @@ void MCLayersModel::onElementsChanged(OBSScene scene)
 	if (CanvasNode *node = findCanvas(scene)) {
 		refreshCanvasElements(node);
 	}
+}
+
+void MCLayersModel::onElementSelectionChanged(OBSScene scene, OBSSceneItem item)
+{
+	CanvasNode *node = findCanvas(scene);
+	if (!node) {
+		return;
+	}
+
+	for (const auto &element : node->elements) {
+		if (element->item == item) {
+			const QModelIndex idx = createIndex(element->row, 0, element.get());
+			emit dataChanged(idx, idx, {SelectedRole});
+			break;
+		}
+	}
+
+	emit selectionChangedExternally();
+}
+
+void MCLayersModel::refreshProgramMarkers()
+{
+	/* Cheap: a handful of Canvas rows, and only on an actual program change. */
+	for (const auto &canvas : canvases_) {
+		const QModelIndex idx = createIndex(canvas->row, 0, canvas.get());
+		emit dataChanged(idx, idx, {ProgramRole});
+	}
+}
+
+QModelIndex MCLayersModel::indexOfElement(obs_sceneitem_t *item) const
+{
+	if (!item) {
+		return {};
+	}
+
+	for (const auto &canvas : canvases_) {
+		for (const auto &element : canvas->elements) {
+			if (element->item == item) {
+				return createIndex(element->row, 0, element.get());
+			}
+		}
+	}
+	return {};
 }
 
 void MCLayersModel::onElementFlagChanged(OBSScene scene, OBSSceneItem item)
