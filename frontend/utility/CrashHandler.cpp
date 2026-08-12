@@ -17,6 +17,7 @@
 
 #include "CrashHandler.hpp"
 #include <OBSApp.hpp>
+#include <subsea/MCBranding.hpp>
 #include <qt-wrappers.hpp>
 
 #include <nlohmann/json.hpp>
@@ -33,9 +34,21 @@ using CrashLogUpdateResult = OBS::CrashHandler::CrashLogUpdateResult;
 
 namespace {
 
-constexpr std::string_view crashSentinelPath = "obs-studio/.sentinel";
+/* Mission Capture: see frontend/subsea/MCBranding.hpp */
+constexpr std::string_view crashSentinelPath = MC_CONFIG_DIR "/.sentinel";
 constexpr std::string_view crashSentinelPrefix = "run_";
-constexpr std::string_view crashUploadURL = "https://obsproject.com/logs/upload";
+
+/* Mission Capture: crash-log upload is DISABLED. Uploading a rebranded fork's
+ * crash logs to the OBS Project's servers would be both a privacy problem for
+ * our users and an imposition on a project that gets nothing from us in return.
+ * Local crash logs are still written to <config>/crashes and can be attached to
+ * a support request by hand.
+ *
+ * To re-enable: stand up an endpoint, put its URL here, and set
+ * isCrashUploadEnabled to true. Then tell users it exists -- silent upload of
+ * dive-related crash data is not acceptable for this market. */
+constexpr std::string_view crashUploadURL = "";
+constexpr bool isCrashUploadEnabled = false;
 
 #ifndef NDEBUG
 constexpr bool isSentinelEnabled = false;
@@ -98,7 +111,10 @@ namespace OBS {
 
 static_assert(!crashSentinelPath.empty(), "Crash sentinel path name cannot be empty");
 static_assert(!crashSentinelPrefix.empty(), "Crash sentinel filename prefix cannot be empty");
-static_assert(!crashUploadURL.empty(), "Crash sentinel upload URL cannot be empty");
+/* Mission Capture: upload is disabled, so the URL is intentionally empty and the
+ * upstream assertion no longer applies. */
+static_assert(isCrashUploadEnabled == !crashUploadURL.empty(),
+	      "Crash upload must be disabled, or enabled with a non-empty URL");
 
 CrashHandler::CrashHandler(QUuid appLaunchUUID) : appLaunchUUID_(appLaunchUUID)
 {
@@ -287,6 +303,12 @@ void CrashHandler::uploadCrashLogToServer()
 
 	if (crashLogFileContent.empty()) {
 		blog(LOG_WARNING, "Most recent crash log file was empty or unavailable for reading");
+		return;
+	}
+
+	/* Mission Capture: crash-log upload disabled -- see crashUploadURL above. */
+	if constexpr (!isCrashUploadEnabled) {
+		blog(LOG_INFO, "[CrashHandler] Crash log upload is disabled; log retained locally only");
 		return;
 	}
 

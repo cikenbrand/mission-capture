@@ -20,6 +20,7 @@
 #include <components/Multiview.hpp>
 #include <dialogs/LogUploadDialog.hpp>
 #include <plugin-manager/PluginManager.hpp>
+#include <subsea/MCBranding.hpp>
 #include <utility/CrashHandler.hpp>
 #include <utility/OBSEventFilter.hpp>
 #include <utility/OBSProxyStyle.hpp>
@@ -456,9 +457,11 @@ static bool MakeUserDirs()
 	return true;
 }
 
-constexpr std::string_view OBSProfileSubDirectory = "obs-studio/basic/profiles";
-constexpr std::string_view OBSScenesSubDirectory = "obs-studio/basic/scenes";
-constexpr std::string_view OBSPluginManagerSubDirectory = "obs-studio/plugin_manager";
+/* Mission Capture: built with std::filesystem rather than GetAppConfigPath(),
+ * so they are rebranded here directly. See frontend/subsea/MCBranding.hpp. */
+constexpr std::string_view OBSProfileSubDirectory = MC_CONFIG_DIR "/basic/profiles";
+constexpr std::string_view OBSScenesSubDirectory = MC_CONFIG_DIR "/basic/scenes";
+constexpr std::string_view OBSPluginManagerSubDirectory = MC_CONFIG_DIR "/plugin_manager";
 
 static bool MakeUserProfileDirs()
 {
@@ -611,7 +614,8 @@ bool OBSApp::InitGlobalConfig()
 
 bool OBSApp::InitUserConfig(std::filesystem::path &userConfigLocation, uint32_t lastVersion)
 {
-	const std::string userConfigFile = userConfigLocation.u8string() + "/obs-studio/user.ini";
+	/* Mission Capture: see frontend/subsea/MCBranding.hpp */
+	const std::string userConfigFile = userConfigLocation.u8string() + "/" MC_CONFIG_DIR "/user.ini";
 
 	int errorCode = userConfig.Open(userConfigFile.c_str(), CONFIG_OPEN_ALWAYS);
 
@@ -671,8 +675,11 @@ void OBSApp::MigrateLegacySettings(const uint32_t lastVersion)
 	}
 }
 
-static constexpr string_view OBSGlobalIniPath = "/obs-studio/global.ini";
-static constexpr string_view OBSUserIniPath = "/obs-studio/user.ini";
+/* Mission Capture: see frontend/subsea/MCBranding.hpp. This migration moves
+ * global.ini -> user.ini within our own tree, so both sides are rebranded. On a
+ * fresh install neither exists and the migration is a no-op. */
+static constexpr string_view OBSGlobalIniPath = "/" MC_CONFIG_DIR "/global.ini";
+static constexpr string_view OBSUserIniPath = "/" MC_CONFIG_DIR "/user.ini";
 
 bool OBSApp::MigrateGlobalSettings()
 {
@@ -983,7 +990,7 @@ static void move_basic_to_profiles(void)
 	}
 
 	const std::filesystem::path profilesPath =
-		App()->userProfilesLocation / std::filesystem::u8path("obs-studio/basic/profiles");
+		App()->userProfilesLocation / std::filesystem::u8path(MC_CONFIG_DIR "/basic/profiles");
 
 	if (std::filesystem::exists(profilesPath)) {
 		return;
@@ -1047,7 +1054,7 @@ static void move_basic_to_scene_collections(void)
 	}
 
 	const std::filesystem::path sceneCollectionPath =
-		App()->userScenesLocation / std::filesystem::u8path("obs-studio/basic/scenes");
+		App()->userScenesLocation / std::filesystem::u8path(MC_CONFIG_DIR "/basic/scenes");
 
 	if (std::filesystem::exists(sceneCollectionPath)) {
 		return;
@@ -1722,39 +1729,49 @@ vector<pair<string, string>> GetLocaleNames()
 #define ALLOW_PORTABLE_MODE 0
 #endif
 
+/* Mission Capture: the two chokepoints every config path flows through. A leading
+ * "obs-studio" component is rewritten to MC_CONFIG_DIR here, so the 47 upstream
+ * call sites that pass "obs-studio/..." need no edits and produce no merge
+ * conflicts. See frontend/subsea/MCBranding.hpp for the full rationale. */
 int GetAppConfigPath(char *path, size_t size, const char *name)
 {
+	const std::string branded = name ? MCBranding::rewriteConfigPath(name) : std::string{};
+	const char *mcName = (name && *name) ? branded.c_str() : name;
+
 #if ALLOW_PORTABLE_MODE
 	if (portable_mode) {
-		if (name && *name) {
-			return snprintf(path, size, CONFIG_PATH "/%s", name);
+		if (mcName && *mcName) {
+			return snprintf(path, size, CONFIG_PATH "/%s", mcName);
 		} else {
 			return snprintf(path, size, CONFIG_PATH);
 		}
 	} else {
-		return os_get_config_path(path, size, name);
+		return os_get_config_path(path, size, mcName);
 	}
 #else
-	return os_get_config_path(path, size, name);
+	return os_get_config_path(path, size, mcName);
 #endif
 }
 
 char *GetAppConfigPathPtr(const char *name)
 {
+	const std::string branded = name ? MCBranding::rewriteConfigPath(name) : std::string{};
+	const char *mcName = (name && *name) ? branded.c_str() : name;
+
 #if ALLOW_PORTABLE_MODE
 	if (portable_mode) {
 		char path[512];
 
-		if (snprintf(path, sizeof(path), CONFIG_PATH "/%s", name) > 0) {
+		if (snprintf(path, sizeof(path), CONFIG_PATH "/%s", mcName) > 0) {
 			return bstrdup(path);
 		} else {
 			return NULL;
 		}
 	} else {
-		return os_get_config_path_ptr(name);
+		return os_get_config_path_ptr(mcName);
 	}
 #else
-	return os_get_config_path_ptr(name);
+	return os_get_config_path_ptr(mcName);
 #endif
 }
 

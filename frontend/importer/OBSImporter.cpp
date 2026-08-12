@@ -20,6 +20,7 @@
 #include "ImporterModel.hpp"
 
 #include <importers/importers.hpp>
+#include <subsea/MCBranding.hpp>
 #include <models/SceneCollection.hpp>
 #include <widgets/OBSBasic.hpp>
 
@@ -164,7 +165,8 @@ bool GetUnusedName(std::string &name)
 	return true;
 }
 
-constexpr std::string_view OBSSceneCollectionPath = "obs-studio/basic/scenes/";
+/* Mission Capture: see frontend/subsea/MCBranding.hpp */
+constexpr std::string_view OBSSceneCollectionPath = MC_CONFIG_DIR "/basic/scenes/";
 
 void OBSImporter::importCollections()
 {

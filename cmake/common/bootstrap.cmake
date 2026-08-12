@@ -41,12 +41,25 @@ if("${CMAKE_CURRENT_BINARY_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 # Set default global project variables
-set(OBS_COMPANY_NAME "OBS Project")
-set(OBS_PRODUCT_NAME "OBS Studio")
-set(OBS_WEBSITE "https://www.obsproject.com")
-set(OBS_COMMENTS "Free and open source software for video recording and live streaming")
-set(OBS_LEGAL_COPYRIGHT "(C) Lain Bailey")
+#
+# Mission Capture fork: these five strings are the root of all product branding.
+# They propagate into every module's Windows version resource (*.rc.in), the CPack
+# configuration, and the installer. Changing them here is intentionally the only
+# place product identity is defined.
+#
+# The OBS_* variable NAMES are kept as-is on purpose -- they are referenced from
+# ~30 upstream .rc.in and cmake files, and renaming them would conflict on every
+# merge for no benefit. Only the values are ours.
+set(OBS_COMPANY_NAME "Cyberian Resources")
+set(OBS_PRODUCT_NAME "Mission Capture")
+set(OBS_WEBSITE "https://github.com/cikenbrand/mission-capture")
+set(OBS_COMMENTS "Subsea inspection video and data recorder")
+set(OBS_LEGAL_COPYRIGHT "(C) Cyberian Resources. Based on OBS Studio, (C) Lain Bailey.")
 set(OBS_CMAKE_VERSION 3.0.0)
+
+# Directory under %APPDATA% for user configuration. Consumed by MC_CONFIG_DIR in
+# frontend/subsea/MCBranding.hpp -- keep the two in step.
+set(MC_CONFIG_DIR "Cyberian Resources/Mission Capture")
 
 # Configure default version strings
 set(_obs_default_version "0" "0" "1")

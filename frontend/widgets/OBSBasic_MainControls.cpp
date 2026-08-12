@@ -287,27 +287,16 @@ void OBSBasic::UploadLog(const char *subdir, const char *file, const LogUploadTy
 		return;
 	}
 
-	ui->menuLogFiles->setEnabled(false);
-
-	stringstream ss;
-	ss << "OBS " << App()->GetVersionString(false) << " log file uploaded at " << CurrentDateTimeString()
-	   << ((uploadType == OBS::LogFileType::CurrentAppLog) ? " (Active Log)" : " (Complete Log)") << "\n\n"
-	   << fileString;
-
-	if (logUploadThread) {
-		logUploadThread->wait();
-	}
-
-	RemoteTextThread *thread = new RemoteTextThread("https://obsproject.com/logs/upload", "text/plain", ss.str());
-
-	logUploadThread.reset(thread);
-
-	connect(thread, &RemoteTextThread::Result, this,
-		[this, uploadType](const std::string &text, const std::string &error) {
-			logUploadFinished(text, error, uploadType);
-		});
-
-	logUploadThread->start();
+	/* Mission Capture: log upload is DISABLED. The upstream endpoint belongs to
+	 * the OBS Project, and a dive log can carry job numbers, vessel names and
+	 * client identifiers -- not something to post to a third party's paste
+	 * service, silently, from a vessel. Logs stay on disk; the Log Files menu
+	 * still opens the folder so a log can be attached to a support mail by hand.
+	 *
+	 * To re-enable: stand up an endpoint, restore the RemoteTextThread call with
+	 * its URL, and make each upload an explicit, informed user action. */
+	blog(LOG_INFO, "Log upload is disabled in this build; '%s/%s' retained locally only", subdir, file);
+	emit App()->logUploadFailed(uploadType, QTStr("LogUploadDialog.Errors.UploadDisabled"));
 }
 
 void OBSBasic::on_actionShowLogs_triggered()

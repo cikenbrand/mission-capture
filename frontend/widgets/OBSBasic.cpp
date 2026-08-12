@@ -39,6 +39,7 @@
 #include <dialogs/OBSBasicTransform.hpp>
 #include <models/SceneCollection.hpp>
 #include <settings/OBSBasicSettings.hpp>
+#include <subsea/MCBranding.hpp>
 #include <utility/QuickTransition.hpp>
 #include <utility/SceneRenameDelegate.hpp>
 #if defined(_WIN32) || defined(WHATSNEW_ENABLED)
@@ -146,7 +147,9 @@ static void AddExtraModulePaths()
 
 	char base_module_dir[512];
 #if defined(_WIN32)
-	int ret = GetProgramDataPath(base_module_dir, sizeof(base_module_dir), "obs-studio/plugins/%module%");
+	/* Mission Capture: GetProgramDataPath bypasses the GetAppConfigPath rewrite,
+	 * so this one is branded directly. See frontend/subsea/MCBranding.hpp. */
+	int ret = GetProgramDataPath(base_module_dir, sizeof(base_module_dir), MC_CONFIG_DIR "/plugins/%module%");
 #elif defined(__APPLE__)
 	int ret = GetAppConfigPath(base_module_dir, sizeof(base_module_dir), "obs-studio/plugins/%module%.plugin");
 #else
@@ -2126,9 +2129,12 @@ void OBSBasic::UpdateTitleBar()
 	const char *profile = config_get_string(App()->GetUserConfig(), "Basic", "Profile");
 	const char *sceneCollection = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
 
-	name << "OBS ";
+	/* Mission Capture: product name in the title bar. "Studio Mode" is hidden in
+	 * this build (see docs/subsea/phase-1-shell-and-layers.md), but the marker is
+	 * kept so the title stays honest if the feature flag is turned back on. */
+	name << "Mission Capture ";
 	if (previewProgramMode) {
-		name << "Studio ";
+		name << "(Studio Mode) ";
 	}
 
 	name << App()->GetVersionString(false);

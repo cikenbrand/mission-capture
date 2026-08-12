@@ -1,5 +1,6 @@
 #include "OBSAbout.hpp"
 
+#include <subsea/MCBranding.hpp>
 #include <widgets/OBSBasic.hpp>
 #include <utility/RemoteTextThread.hpp>
 
@@ -31,19 +32,18 @@ OBSAbout::OBSAbout(QWidget *parent) : QDialog(parent), ui(new Ui::OBSAbout)
 
 	ui->version->setText(ver + bitness);
 
+	/* Mission Capture: the upstream donate / get-involved links point at the OBS
+	 * Project. Soliciting contributions to them from our product would be
+	 * misleading, so they are replaced with the GPLv2 source-availability notice
+	 * we are obliged to provide. */
 	ui->contribute->setText(QTStr("About.Contribute"));
 
-	if (steam) {
-		delete ui->donate;
-	} else {
-		ui->donate->setText("&nbsp;&nbsp;<a href='https://obsproject.com/contribute'>" + QTStr("About.Donate") +
-				    "</a>");
-		ui->donate->setTextInteractionFlags(Qt::TextBrowserInteraction);
-		ui->donate->setOpenExternalLinks(true);
-	}
+	ui->donate->setText("&nbsp;&nbsp;<a href='" MC_SOURCE_URL "'>" + QTStr("About.Source") + "</a>");
+	ui->donate->setTextInteractionFlags(Qt::TextBrowserInteraction);
+	ui->donate->setOpenExternalLinks(true);
 
-	ui->getInvolved->setText("&nbsp;&nbsp;<a href='https://obsproject.com/developer-contributing'>" +
-				 QTStr("About.GetInvolved") + "</a>");
+	ui->getInvolved->setText("&nbsp;&nbsp;<a href='" MC_UPSTREAM_URL "'>" + QTStr("About.UpstreamProject") +
+				 "</a>");
 	ui->getInvolved->setTextInteractionFlags(Qt::TextBrowserInteraction);
 	ui->getInvolved->setOpenExternalLinks(true);
 
@@ -64,17 +64,10 @@ OBSAbout::OBSAbout(QWidget *parent) : QDialog(parent), ui(new Ui::OBSAbout)
 
 	QPointer<OBSAbout> about(this);
 
-	OBSBasic *main = OBSBasic::Get();
-	if (main->patronJson.empty() && !main->patronJsonThread) {
-		RemoteTextThread *thread =
-			new RemoteTextThread("https://obsproject.com/patreon/about-box.json", "application/json");
-		QObject::connect(thread, &RemoteTextThread::Result, main, &OBSBasic::UpdatePatronJson);
-		QObject::connect(thread, &RemoteTextThread::Result, this, &OBSAbout::ShowAbout);
-		main->patronJsonThread.reset(thread);
-		thread->start();
-	} else {
-		ShowAbout();
-	}
+	/* Mission Capture: upstream fetches the OBS Project's patron list here.
+	 * Opening the About box should not make a network request at all, least of
+	 * all to a third party -- and on a vessel there may be no route out. */
+	ShowAbout();
 }
 
 void OBSAbout::ShowAbout()

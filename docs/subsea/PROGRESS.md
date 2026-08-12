@@ -44,7 +44,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 
 | Phase | Title | Tasks | Done | Status |
 |---|---|---|---|---|
-| [0](phase-0-foundation.md) | Foundation | 7 | 0 | `todo` |
+| [0](phase-0-foundation.md) | Foundation | 7 | **2** | `wip` |
 | [1](phase-1-shell-and-layers.md) | Shell & Layers tree | 9 | 0 | `todo` |
 | [2](phase-2-video-elements.md) | Video elements | 6 | 0 | `todo` |
 | [3](phase-3-data-core.md) | Data core | 7 | 0 | `todo` |
@@ -54,7 +54,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 | [7](phase-7-secondary-capture.md) | Secondary capture | 11 | 0 | `todo` |
 | [8](phase-8-sidecar-log.md) | Sidecar log & hardening | 8 | 0 | `todo` |
 | [9](phase-9-webrtc-streaming.md) | WebRTC streaming | 6 | 0 | `todo` |
-| | **Total** | **76** | **0** | |
+| | **Total** | **76** | **2** | |
 
 **Acceptance criteria met:** 0 / 113 — evidence tracked per-criterion in the run reports.
 
@@ -85,6 +85,12 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | OI-14 | 0.1 | debt | low | `docs/subsea/` untracked and uncommitted | — | ✅ **closed 2026-08-12** — commit `2d5d1942c` |
 | OI-15 | 0.1 | question | med | First push not yet authorised | OI-14 | ✅ **closed 2026-08-12** — `master` and `develop` pushed, tracking set |
 | OI-16 | 0.1 | debt | low | Line endings: git warns `LF will be replaced by CRLF` for the docs. `.gitattributes` exists but has no rule for `*.md`, so text files depend on each machine's `core.autocrlf`. Harmless now; will cause spurious whole-file diffs if a second machine or a Linux CI runner ever touches the repo | — | open — fix during 0.6 (CI) |
+| OI-17 | 0.2 | dependency | **high** | **Logo not designed yet.** `frontend/cmake/windows/mission-capture.ico` is a deliberately plain placeholder ("MC" on subsea blue with an amber bar to mark it provisional). Must be replaced before any external release — a placeholder icon on a client's vessel PC looks unfinished | first release | **open — waiting on you** |
+| OI-18 | 0.2 | dependency | med | Visual Studio **ATL/MFC component is not installed**, so `frontend-tools`, `obs-qsv11` and `virtualcam-module` fail to compile. All three are slated for build-disable in 0.3, so this may never need fixing — but until then a full solution build fails and only the `obs-studio` target can be built in isolation | 0.3, 0.5 | open |
+| OI-19 | 0.2 | bug | med | `CMakePresets.json` requires generator "Visual Studio 18 2026"; this machine has VS 2022 (17). Configure needs `-G "Visual Studio 17 2022"` as an override. The `windows-subsea-x64` preset in 0.3 must target 17 2022 | 0.3 | open |
+| OI-20 | 0.2 | deferred | med | **There is no installer in this repo** — OBS's Windows installer lives in a separate project, and CPack here only produces a ZIP. Task 0.2's "installer: name, upgrade GUID, Start-menu entry" could not be done because there is nothing to rebrand. An installer is genuinely new work and needs its own task before release | release | open — needs a plan decision |
+| OI-21 | 0.2 | debt | low | Updater endpoints (`AutoUpdateThread`, `updater.cpp`, `WhatsNewInfoThread`) and OAuth placeholder URLs still point at obsproject.com. Harmless only while those features are off; they must be build-disabled or repointed before release | 0.3, 1.5 | open |
+| OI-22 | 0.2 | debt | low | Submodules were uninitialised on this clone; `git submodule update --init --recursive` is required after any fresh clone. Belongs in the build documentation | 0.5 | open |
 
 ---
 
@@ -93,7 +99,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | ID | Task | Status | Done | Evidence | Notes |
 |---|---|---|---|---|---|
 | 0.1 | Fork branch topology and merge cadence | **`done`** | 2026-08-12 | [UPSTREAM.md](UPSTREAM.md) · `2d5d1942c` | `origin` → `git@github.com:cikenbrand/mission-capture.git`; 22 stale obsproject refs pruned. `upstream` added with **push URL `DISABLED`** — an addition to the plan, verified to fail closed. `master` + `develop` at the fork point, both pushed and tracking. `master` kept (not renamed to `main`). Monthly scheduled task `mission-capture-upstream-merge` reports drift and seam changes — **reports only, never merges**. Deviation: **no `upstream-tracking` branch** — `remotes/upstream/master` does the same job and can't go stale. Carried forward: OI-16 |
-| 0.2 | Rebranding | `todo` | | | |
+| 0.2 | Rebranding | **`done`** | 2026-08-12 | `MissionCapture64.exe` version resource verified | Product/company/copyright centralised in `bootstrap.cmake`; exe renamed; CPack package renamed; window title, About dialog and locale strings rebranded. **Config dir** moved to `%APPDATA%\Cyberian Resources\Mission Capture` via a rewrite at the `GetAppConfigPath`/`GetAppConfigPathPtr` chokepoints rather than editing 47 literals in 16 files — see `frontend/subsea/MCBranding.hpp` for the trade-off. **Crash-log and log upload disabled** (both pointed at obsproject.com); About no longer makes a network call. `THIRD_PARTY_NOTICES.md` added with the GPLv2 source offer. OBS icons deleted, placeholder icon in place. Carried forward: OI-17…OI-22 |
 | 0.3 | Windows-only build slimming | `todo` | | | |
 | 0.4 | Feature-flag system | `todo` | | | |
 | 0.5 | Test harness bring-up | `todo` | | | |
