@@ -12,6 +12,11 @@
 !/plugins
 !/shared
 !/test
+# Mission Capture: this file is an allowlist -- /* excludes everything and each
+# !/dir opts a directory back in. Anything added at the top level that is not
+# listed here is silently ignored, which is how the entire test harness went
+# uncommitted through three tasks. Add new top-level paths here.
+!/tools
 !.cirrus.xml
 !.clang-format
 !.editorconfig
@@ -32,6 +37,7 @@
 !COPYING
 !INSTALL
 !README.rst
+!THIRD_PARTY_NOTICES.md
 
 # Exclude lock files
 *.lock.json
