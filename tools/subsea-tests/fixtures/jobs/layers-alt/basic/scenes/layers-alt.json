@@ -1,0 +1,15 @@
+{
+  "current_scene": "Alt Cam",
+  "current_program_scene": "Alt Cam",
+  "name": "layers-alt",
+  "scene_order": [{"name": "Alt Cam"}],
+  "sources": [
+    {"id": "scene", "name": "Alt Cam", "versioned_id": "scene",
+     "settings": {"items": [
+       {"name": "AltA", "visible": true, "locked": false, "pos": {"x":0,"y":0}, "scale": {"x":1,"y":1}, "align": 5, "bounds_type": 0, "bounds": {"x":0,"y":0}},
+       {"name": "AltB", "visible": true, "locked": false, "pos": {"x":0,"y":0}, "scale": {"x":1,"y":1}, "align": 5, "bounds_type": 0, "bounds": {"x":0,"y":0}}
+     ]}},
+    {"id": "color_source_v3", "name": "AltA", "versioned_id": "color_source_v3", "settings": {"color": 4278222848, "width": 1920, "height": 1080}},
+    {"id": "color_source_v3", "name": "AltB", "versioned_id": "color_source_v3", "settings": {"color": 4286578816, "width": 1920, "height": 1080}}
+  ]
+}

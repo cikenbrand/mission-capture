@@ -83,7 +83,8 @@ void MCLayersModel::reload()
 	 * the overlay-template container (Phase 4) live on a different
 	 * obs_canvas_t and are deliberately not enumerated here. */
 	std::vector<OBSSource> scenes;
-	obs_canvas_enum_scenes(obs_get_main_canvas(), collectScene, &scenes);
+	OBSCanvasAutoRelease mainCanvas = obs_get_main_canvas(); /* strong ref */
+	obs_canvas_enum_scenes(mainCanvas, collectScene, &scenes);
 
 	int row = 0;
 	for (const OBSSource &sceneSource : scenes) {
@@ -676,7 +677,12 @@ void MCLayersModel::onCanvasAdded(OBSSource source)
 
 	/* Only Canvases on the main render target belong in Layers; overlay
 	 * templates live on their own container and must not appear. */
-	if (obs_source_get_canvas(source) != obs_get_main_canvas()) {
+	/* Both of these return a *strong* reference, so both must be released --
+	 * comparing the raw pointers directly leaks two canvas refs on every scene
+	 * creation, and a Job switch creates every scene at once. */
+	OBSCanvasAutoRelease sourceCanvas = obs_source_get_canvas(source);
+	OBSCanvasAutoRelease mainCanvas = obs_get_main_canvas();
+	if (sourceCanvas.Get() != mainCanvas.Get()) {
 		return;
 	}
 
