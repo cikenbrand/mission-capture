@@ -21,6 +21,7 @@
 #include <dialogs/LogUploadDialog.hpp>
 #include <plugin-manager/PluginManager.hpp>
 #include <subsea/MCBranding.hpp>
+#include <subsea/MCFeatures.hpp>
 #include <utility/CrashHandler.hpp>
 #include <utility/OBSEventFilter.hpp>
 #include <utility/OBSProxyStyle.hpp>
@@ -1307,6 +1308,11 @@ bool OBSApp::OBSInit()
 	}
 
 	setQuitOnLastWindowClosed(false);
+
+	/* Mission Capture: load feature flags before any UI exists, so the state is
+	 * in the log above the window construction that depends on it.
+	 * See frontend/subsea/MCFeatures.hpp. */
+	MCFeatures::load();
 
 	thumbnailManager = new ThumbnailManager(this);
 

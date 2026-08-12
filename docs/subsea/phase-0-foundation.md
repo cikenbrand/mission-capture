@@ -146,14 +146,18 @@ const char *name(Feature f);
 }
 ```
 
-- Defaults compiled in (a `constexpr` table), overridable by `features.ini` in the profile
-  directory so a power user or support engineer can turn something back on in the field without a
-  rebuild
-- `apply()` walks named `QAction`/`QDockWidget`/`QWidget` objects and calls `setVisible(false)`.
-  Use `findChild<>()` by `objectName` — it degrades to a warning if upstream renames something,
-  rather than failing to compile or crashing
-- Log every flag state at startup so support tickets are diagnosable
-- **Exactly one seam:** `MCFeatures::apply(this)` at the end of `OBSBasic::OBSInit()`
+- Defaults compiled in (a `constexpr` table), overridable by `features.ini` **in the config root**
+  alongside `global.ini` — not the profile directory, because these are product-level decisions
+  rather than per-Rig ones. The file is written with all defaults and per-flag comments on first
+  run so it is self-documenting in the field
+- `apply()` walks named `QAction` and `QWidget` objects and calls `setVisible(false)`. Use
+  `findChild<>()` by `objectName` — it degrades to a warning if upstream renames something, rather
+  than failing to compile or crashing, and returns the miss count so drift is measurable.
+  **`QLayout` is neither a widget nor an action** — list the buttons, not their layout
+- Log every flag state *and its origin* (file or default) at startup so support tickets are
+  diagnosable
+- **Two seams:** `MCFeatures::load()` in `OBSApp::OBSInit()` before the window is built, and
+  `MCFeatures::apply(this)` at the end of `OBSBasic::OBSInit()` once every dock exists
 
 **Files:** `frontend/subsea/MCFeatures.{hpp,cpp}` (new), seams #3, #6, #7
 

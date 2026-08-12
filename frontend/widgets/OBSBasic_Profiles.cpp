@@ -20,6 +20,7 @@
 #ifdef YOUTUBE_ENABLED
 #include <docks/YouTubeAppDock.hpp>
 #endif
+#include <subsea/MCBranding.hpp>
 #include <wizards/AutoConfig.hpp>
 
 #include <qt-wrappers.hpp>
@@ -29,7 +30,9 @@
 
 // MARK: Constant Expressions
 
-constexpr std::string_view OBSProfilePath = "/obs-studio/basic/profiles/";
+/* Mission Capture: built with std::filesystem, so it bypasses the
+ * GetAppConfigPath rewrite. See frontend/subsea/MCBranding.hpp. */
+constexpr std::string_view OBSProfilePath = "/" MC_CONFIG_DIR "/basic/profiles/";
 constexpr std::string_view OBSProfileSettingsFile = "basic.ini";
 
 // MARK: Forward Declarations

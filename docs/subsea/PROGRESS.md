@@ -44,7 +44,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 
 | Phase | Title | Tasks | Done | Status |
 |---|---|---|---|---|
-| [0](phase-0-foundation.md) | Foundation | 7 | **3** | `wip` |
+| [0](phase-0-foundation.md) | Foundation | 7 | **4** | `wip` |
 | [1](phase-1-shell-and-layers.md) | Shell & Layers tree | 9 | 0 | `todo` |
 | [2](phase-2-video-elements.md) | Video elements | 6 | 0 | `todo` |
 | [3](phase-3-data-core.md) | Data core | 7 | 0 | `todo` |
@@ -54,7 +54,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 | [7](phase-7-secondary-capture.md) | Secondary capture | 11 | 0 | `todo` |
 | [8](phase-8-sidecar-log.md) | Sidecar log & hardening | 8 | 0 | `todo` |
 | [9](phase-9-webrtc-streaming.md) | WebRTC streaming | 6 | 0 | `todo` |
-| | **Total** | **76** | **3** | |
+| | **Total** | **76** | **4** | |
 
 **Acceptance criteria met:** 0 / 113 — evidence tracked per-criterion in the run reports.
 
@@ -91,6 +91,9 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | OI-20 | 0.2 | deferred | med | **There is no installer in this repo** — OBS's Windows installer lives in a separate project, and CPack here only produces a ZIP. Task 0.2's "installer: name, upgrade GUID, Start-menu entry" could not be done because there is nothing to rebrand. An installer is genuinely new work and needs its own task before release | release | open — needs a plan decision |
 | OI-21 | 0.2 | debt | low | Updater / WhatsNew / service-list endpoints pointing at obsproject.com | 0.3, 1.5 | **partly closed 2026-08-12** — updater.exe, WhatsNew, service and compat updates are now build-disabled. The in-app update *check* in `AutoUpdateThread.cpp` still compiles; runtime-disabled only. Full removal in 1.5 |
 | OI-22 | 0.2 | debt | low | Submodules were uninitialised on this clone; `git submodule update --init --recursive` is required after any fresh clone. Belongs in the build documentation | 0.5 | ✅ **closed 2026-08-12** — documented in BUILDING.md |
+| OI-23 | 0.4 | debt | **med** | **Hidden features keep their hotkeys.** `apply()` calls `setVisible(false)`, which does not unregister a `QAction`'s shortcut — a hidden Replay Buffer still responds to its key. Known and documented in `MCFeatures.hpp`; Phase 1 task 1.5 must unregister them | 1.5 | open |
+| OI-24 | 0.4 | bug | low | Upstream logs `Failed to rename basic scene collection file` on **every fresh config** — the first-run migration renames `basic/scenes.json` without checking it exists. Cosmetic, but it pollutes error-scanning tests, so it is allow-listed in `testing.md`. Left unpatched to avoid touching an upstream file for no functional gain; candidate for an upstream PR | — | open |
+| OI-25 | 0.4 | debt | low | `decklink-captions` and `decklink-output-ui` fail to load their `en-US` locale at startup. Both are peripheral plugins that ride along with `ENABLE_DECKLINK` and neither is used; worth disabling outright if a switch can be added | 2.1 | open |
 
 ---
 
@@ -101,7 +104,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | 0.1 | Fork branch topology and merge cadence | **`done`** | 2026-08-12 | [UPSTREAM.md](UPSTREAM.md) · `2d5d1942c` | `origin` → `git@github.com:cikenbrand/mission-capture.git`; 22 stale obsproject refs pruned. `upstream` added with **push URL `DISABLED`** — an addition to the plan, verified to fail closed. `master` + `develop` at the fork point, both pushed and tracking. `master` kept (not renamed to `main`). Monthly scheduled task `mission-capture-upstream-merge` reports drift and seam changes — **reports only, never merges**. Deviation: **no `upstream-tracking` branch** — `remotes/upstream/master` does the same job and can't go stale. Carried forward: OI-16 |
 | 0.2 | Rebranding | **`done`** | 2026-08-12 | `MissionCapture64.exe` version resource verified | Product/company/copyright centralised in `bootstrap.cmake`; exe renamed; CPack package renamed; window title, About dialog and locale strings rebranded. **Config dir** moved to `%APPDATA%\Cyberian Resources\Mission Capture` via a rewrite at the `GetAppConfigPath`/`GetAppConfigPathPtr` chokepoints rather than editing 47 literals in 16 files — see `frontend/subsea/MCBranding.hpp` for the trade-off. **Crash-log and log upload disabled** (both pointed at obsproject.com); About no longer makes a network call. `THIRD_PARTY_NOTICES.md` added with the GPLv2 source offer. OBS icons deleted, placeholder icon in place. Carried forward: OI-17…OI-22 |
 | 0.3 | Windows-only build slimming | **`done`** | 2026-08-12 | Clean build exit 0; [BUILDING.md](BUILDING.md) | `windows-subsea-x64` preset added: 22 cache vars, 19 plugins ship (was 27). **Configure 45 s, clean build 200 s, rundir 382 MB.** Added two options upstream lacks: `ENABLE_FRONTEND_TOOLS` and `ENABLE_UPDATER` (the latter otherwise ships an updater.exe that would patch our install with OBS binaries). Pinned `CMAKE_GENERATOR_INSTANCE` to VS Community — see OI-18, my earlier assumption that disabling plugins would dodge the ATL problem was **wrong**. Also made the root CMakeLists record disabled scripting in the feature summary, which upstream silently omits. Beyond the planned list I also disabled WhatsNew, service/compat updates, NVAFX/NVVFX and CoreAudio encoder — all either phone home or need absent redistributables |
-| 0.4 | Feature-flag system | `todo` | | | |
+| 0.4 | Feature-flag system | **`done`** | 2026-08-12 | Runtime verified: 30 hidden / 0 missing; override round-trip 30→28 | 16 flags in one table in `MCFeatures.cpp`; `features.ini` self-writes with per-flag comments on first run. Two seams, not one: `load()` in `OBSApp::OBSInit` + `apply()` at the end of `OBSBasic::OBSInit`. `features.ini` lives in the config root, not the profile dir — product-level, not per-Rig. **Found 4 more config-path literals my 0.2 verification missed** (grep pattern `"obs-studio` skipped every leading-slash variant); one of them broke startup entirely. `ScenesDock`/`SourcesDock` deliberately default ON until Phase 1 builds Layers |
 | 0.5 | Test harness bring-up | `todo` | | | |
 | 0.6 | CI reduction | `todo` | | | |
 | 0.7 | Baseline hardware benchmark | `todo` | | | Resolves OI-5, OI-6 |

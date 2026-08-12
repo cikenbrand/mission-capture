@@ -21,6 +21,7 @@
 #include "OBSBasicStats.hpp"
 
 #include <dialogs/LogUploadDialog.hpp>
+#include <subsea/MCBranding.hpp>
 #include <dialogs/OBSAbout.hpp>
 #include <dialogs/OBSBasicAdvAudio.hpp>
 #include <dialogs/OBSBasicFilters.hpp>
@@ -453,7 +454,8 @@ void OBSBasic::on_actionReleaseNotes_triggered()
 
 void OBSBasic::on_actionShowSettingsFolder_triggered()
 {
-	const std::string userConfigPath = App()->userConfigLocation.u8string() + "/obs-studio";
+	/* Mission Capture: see frontend/subsea/MCBranding.hpp */
+	const std::string userConfigPath = App()->userConfigLocation.u8string() + "/" MC_CONFIG_DIR;
 	const QString userConfigLocation = QString::fromStdString(userConfigPath);
 
 	QDesktopServices::openUrl(QUrl::fromLocalFile(userConfigLocation));

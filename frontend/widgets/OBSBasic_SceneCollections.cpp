@@ -20,6 +20,7 @@
 #include <dialogs/OBSMissingFiles.hpp>
 #include <importer/OBSImporter.hpp>
 #include <models/SceneCollection.hpp>
+#include <subsea/MCBranding.hpp>
 #include <utility/item-widget-helpers.hpp>
 
 #include <qt-wrappers.hpp>
@@ -42,7 +43,9 @@ using SceneCollection = OBS::SceneCollection;
 
 // MARK: Constant Expressions
 
-static constexpr std::string_view SceneCollectionPath = "/obs-studio/basic/scenes/";
+/* Mission Capture: built with std::filesystem, so it bypasses the
+ * GetAppConfigPath rewrite. See frontend/subsea/MCBranding.hpp. */
+static constexpr std::string_view SceneCollectionPath = "/" MC_CONFIG_DIR "/basic/scenes/";
 
 namespace DataKeys {
 static constexpr std::string_view AbsoluteCoordinates = "AbsoluteCoordinates";

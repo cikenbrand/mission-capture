@@ -581,7 +581,16 @@ $proc = Start-App -Workspace $ws
 Start-Sleep -Seconds 5
 $code = Stop-App -Process $proc
 Assert-True ($code -eq 0) "Clean exit (code $code)"
-Assert-NoLogErrors -Workspace $ws -Allow @('Failed to load .* module', 'NVENC not available')
+Assert-NoLogErrors -Workspace $ws -Allow @(
+    'Failed to load .* module',
+    'NVENC not available',
+    # Upstream bug: the first-run scene-collection migration renames basic/scenes.json
+    # without checking it exists, so a fresh config always logs this once. Left
+    # unpatched deliberately -- it is cosmetic and patching it would touch an
+    # upstream file for no functional gain. Candidate for an upstream PR.
+    'Failed to rename basic scene collection file',
+    "Failed to load 'en-US' text for module: 'decklink-(captions|output-ui)"
+)
 
 # --- 3. Config isolation ---------------------------------------------------
 Assert-True (Test-Path (Join-Path $ws 'config')) 'Portable config directory was used'

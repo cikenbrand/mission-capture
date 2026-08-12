@@ -40,6 +40,7 @@
 #include <models/SceneCollection.hpp>
 #include <settings/OBSBasicSettings.hpp>
 #include <subsea/MCBranding.hpp>
+#include <subsea/MCFeatures.hpp>
 #include <utility/QuickTransition.hpp>
 #include <utility/SceneRenameDelegate.hpp>
 #if defined(_WIN32) || defined(WHATSNEW_ENABLED)
@@ -1371,6 +1372,11 @@ void OBSBasic::OBSInit()
 
 	UpdatePreviewProgramIndicators();
 	OnFirstLoad();
+
+	/* Mission Capture: the single seam for feature flags. Runs after the UI and
+	 * all docks exist, so every objectName the flag table names is findable.
+	 * See frontend/subsea/MCFeatures.hpp. */
+	MCFeatures::apply(this);
 
 	if (!hideWindowOnStart) {
 		activateWindow();

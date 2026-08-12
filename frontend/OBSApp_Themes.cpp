@@ -17,6 +17,7 @@
 
 #include "OBSApp.hpp"
 
+#include <subsea/MCBranding.hpp>
 #include <utility/OBSProxyStyle.hpp>
 #include <utility/OBSThemeVariable.hpp>
 #include <utility/platform.hpp>
@@ -477,7 +478,8 @@ void OBSApp::FindThemes()
 	}
 
 	{
-		const std::string themeDir = App()->userConfigLocation.u8string() + "/obs-studio/themes";
+		/* Mission Capture: see frontend/subsea/MCBranding.hpp */
+		const std::string themeDir = App()->userConfigLocation.u8string() + "/" MC_CONFIG_DIR "/themes";
 
 		QDirIterator it(QString::fromStdString(themeDir), filters, QDir::Files);
 
