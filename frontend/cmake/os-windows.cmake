@@ -71,7 +71,15 @@ endif()
 
 set_source_files_properties(utility/AutoUpdateThread.cpp PROPERTIES COMPILE_DEFINITIONS OBS_COMMIT="${OBS_COMMIT}")
 
-add_subdirectory(updater)
+# Mission Capture: the updater builds a standalone updater.exe that downloads and
+# installs binaries from obsproject.com/update_studio. Shipping it in a fork would
+# let it patch a Mission Capture install with OBS Studio files -- so it is off by
+# default. The in-app update *check* lives in AutoUpdateThread.cpp and is a
+# separate concern, disabled at runtime for now and feature-flagged in Phase 1.
+option(ENABLE_UPDATER "Build the standalone Windows updater executable" ON)
+if(ENABLE_UPDATER)
+  add_subdirectory(updater)
+endif()
 
 set_property(TARGET obs-studio APPEND PROPERTY AUTORCC_OPTIONS --format-version 1)
 

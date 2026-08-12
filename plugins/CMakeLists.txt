@@ -53,11 +53,17 @@ add_obs_plugin(
     PLATFORMS WINDOWS MACOS LINUX
     WITH_MESSAGE
 )
-add_obs_plugin(
-    frontend-tools
-    PLATFORMS WINDOWS MACOS LINUX
-    WITH_MESSAGE
-)
+# Mission Capture: frontend-tools (scripting, captions, auto-scene-switcher, output
+# timer) has no upstream enable option. It is not part of the inspection workflow,
+# and on Windows it also requires the Visual Studio ATL component to compile.
+option(ENABLE_FRONTEND_TOOLS "Build the frontend-tools plugin" ON)
+if(ENABLE_FRONTEND_TOOLS)
+  add_obs_plugin(
+      frontend-tools
+      PLATFORMS WINDOWS MACOS LINUX
+      WITH_MESSAGE
+  )
+endif()
 add_obs_plugin(image-source)
 add_obs_plugin(linux-alsa PLATFORMS LINUX FREEBSD OPENBSD)
 add_obs_plugin(linux-capture PLATFORMS LINUX FREEBSD OPENBSD)

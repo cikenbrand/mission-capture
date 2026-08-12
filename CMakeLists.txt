@@ -19,6 +19,15 @@ option(ENABLE_FRONTEND "Enable building with UI (requires Qt)" ON)
 option(ENABLE_SCRIPTING "Enable scripting support" ON)
 option(ENABLE_HEVC "Enable HEVC encoders" ON)
 
+# Mission Capture: shared/obs-scripting is only ever added by the frontend-tools
+# plugin, so with that plugin disabled nothing reads ENABLE_SCRIPTING -- scripting
+# then disappears without ever appearing in the configuration summary, and CMake
+# warns that the variable was unused. Record it explicitly so the summary is
+# honest about what is not being built.
+if(NOT ENABLE_SCRIPTING)
+  set_property(GLOBAL APPEND PROPERTY OBS_FEATURES_DISABLED "Scripting Support")
+endif()
+
 add_subdirectory(libobs)
 if(OS_WINDOWS)
   add_subdirectory(libobs-d3d11)

@@ -73,19 +73,37 @@ migrate from `%APPDATA%\obs-studio` on first run (probably not — a clean start
 ### 0.3 — Windows-only build slimming
 `1 day`
 
-Add a `windows-subsea-x64` preset to `CMakePresets.json` that disables what we will never ship:
+Add a `windows-subsea-x64` preset to `CMakePresets.json`. `CMakePresets.json` is strict JSON and
+cannot carry comments, so the rationale lives here.
 
-| Option | Value | Why |
-|---|---|---|
-| `ENABLE_SCRIPTING` | `OFF` | No Lua/Python for this audience; removes a big dependency |
-| `ENABLE_BROWSER` | `OFF` | CEF is ~200 MB of the installer and a large attack surface |
-| `ENABLE_VST` | `OFF` | Audio plugin hosting is irrelevant here |
-| `ENABLE_VLC` | `OFF` | Media playback via FFmpeg is enough |
-| `ENABLE_AJA` | `OFF` | AJA is not on the confirmed hardware list |
-| `ENABLE_WEBSOCKET` | **`ON`** | Keep it: it's the test hook for every later phase |
-| `ENABLE_UNIT_TESTS` | `ON` | Needed by 0.5 |
-| `ENABLE_DECKLINK` | **`ON`** | Blackmagic is the primary capture hardware |
-| `ENABLE_WEBRTC` | **`ON`** | Needed by [Phase 9](phase-9-webrtc-streaming.md); the WHIP output already exists |
+**Kept — load-bearing:**
+
+| Option | Why |
+|---|---|
+| `ENABLE_DECKLINK` | Blackmagic SDI capture, the primary hardware |
+| `ENABLE_WEBRTC` | WHIP output for [Phase 9](phase-9-webrtc-streaming.md) |
+| `ENABLE_WEBSOCKET` | The test hook every later phase asserts through |
+| `ENABLE_NVENC` | One of the two target encoder families |
+| `ENABLE_HEVC` | WHIP advertises HEVC; also useful for recording |
+| `ENABLE_NEW_MPEGTS_OUTPUT` | SRT / RIST, the Phase 9 alternatives to WebRTC |
+
+**Dropped:**
+
+| Option | Why |
+|---|---|
+| `ENABLE_SCRIPTING` | No Lua/Python for this audience; large dependency |
+| `ENABLE_BROWSER` | CEF is ~200 MB and a large attack surface |
+| `ENABLE_WHATSNEW` | A browser panel that fetches from obsproject.com |
+| `ENABLE_VST` | Audio plugin hosting is irrelevant here |
+| `ENABLE_VLC` | FFmpeg media playback is enough |
+| `ENABLE_AJA` | Not on the confirmed hardware list |
+| `ENABLE_FRONTEND_TOOLS` | Scripting-adjacent tools; **option added by us**, upstream has none |
+| `ENABLE_VIRTUALCAM` | Hidden feature |
+| `ENABLE_QSV11` | Intel encoding; the targets are AMD and NVIDIA |
+| `ENABLE_UPDATER` | **Option added by us.** Would otherwise ship an updater.exe that patches a Mission Capture install with OBS Studio binaries |
+| `ENABLE_SERVICE_UPDATES`, `ENABLE_COMPAT_UPDATES` | Both fetch lists from obsproject.com |
+| `ENABLE_NVAFX`, `ENABLE_NVVFX` | NVIDIA effect SDKs; need redistributables |
+| `ENABLE_COREAUDIO_ENCODER` | Needs Apple software installed on Windows |
 
 `win-dshow` (AVerMedia and other UVC devices) and `obs-ffmpeg` (RTSP, and the muxer) have no
 opt-out and stay on — both are load-bearing for [Phase 2](phase-2-video-elements.md).
@@ -93,10 +111,17 @@ opt-out and stay on — both are load-bearing for [Phase 2](phase-2-video-elemen
 macOS/Linux plugin directories stay in the tree, unbuilt — deleting them creates merge conflicts
 for zero benefit.
 
-Measure and record configure+build time before and after; this number is the developer-experience
-budget for the next six months.
+**Toolchain pinning.** The preset sets `CMAKE_GENERATOR_INSTANCE` to the Visual Studio *Community*
+install and the generator to `Visual Studio 17 2022`. Upstream's preset asks for "Visual Studio 18
+2026", and on a machine with both Build Tools and Community installed CMake will otherwise pick
+Build Tools — which lacks the ATL component that `win-dshow` needs via Elgato's
+`capture-device-support`. Without the pin, the capture backend does not compile.
 
-**Files:** `CMakePresets.json`, possibly `plugins/CMakeLists.txt` guards
+Measure and record configure+build time; this number is the developer-experience budget for the
+next six months.
+
+**Files:** `CMakePresets.json`, `plugins/CMakeLists.txt`, `frontend/cmake/os-windows.cmake`,
+`CMakeLists.txt`
 
 ---
 
