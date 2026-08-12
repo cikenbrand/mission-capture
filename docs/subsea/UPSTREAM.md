@@ -90,6 +90,12 @@ and a local copy is one more thing to forget to update. Merge from `upstream/mas
 
 Monthly, on `develop`, never directly on `master`.
 
+A scheduled task, **`mission-capture-upstream-merge`**, runs at 09:00 on the 1st of each month and
+reports drift: how far behind we are, which seam files upstream touched, and — most importantly —
+whether any *non-seam* file we have modified also changed upstream, which is the signal that the
+fork strategy is slipping. It reports only; it never merges. (It runs while the app is open, or on
+next launch if the app was closed when it was due.)
+
 ```bash
 git fetch upstream --no-tags
 git switch develop

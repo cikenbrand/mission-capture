@@ -81,9 +81,10 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | OI-10 | planning | deferred | low | Phase completion reports declined in favour of run reports only. Run reports cover verification but record nothing about mid-phase cuts, deferrals, or plan deviations — that gap is now covered by this tracker's Notes column | — | accepted |
 | OI-11 | planning | deferred | low | Clean (overlay-free) *video* copy is out of scope. Clean *stills* are in, via Phase 7 snapshots | — | closed by decision |
 | OI-12 | 0.1 | dependency | high | `origin` pointed at `obsproject/obs-studio` | 0.1 | ✅ **closed 2026-08-12** — repointed to `cikenbrand/mission-capture`, stale refs pruned |
-| OI-13 | 0.1 | question | low | Monthly upstream-merge reminder not yet set. Can be a scheduled task, a calendar entry, or a CI cron that opens an issue — your call | 0.1 | **open — needs you** |
-| OI-14 | 0.1 | debt | low | `docs/subsea/` is untracked and uncommitted | — | open — clears with OI-15 |
-| OI-15 | 0.1 | question | med | Nothing has been committed or pushed. First push sends the full OBS history (~1 GB) to your repo and, if it is public, publishes it. Needs your explicit go-ahead | OI-14 | **open — needs you** |
+| OI-13 | 0.1 | question | low | Monthly upstream-merge reminder | 0.1 | ✅ **closed 2026-08-12** — scheduled task `mission-capture-upstream-merge`, 09:00 on the 1st monthly |
+| OI-14 | 0.1 | debt | low | `docs/subsea/` untracked and uncommitted | — | ✅ **closed 2026-08-12** — commit `2d5d1942c` |
+| OI-15 | 0.1 | question | med | First push not yet authorised | OI-14 | ✅ **closed 2026-08-12** — `master` and `develop` pushed, tracking set |
+| OI-16 | 0.1 | debt | low | Line endings: git warns `LF will be replaced by CRLF` for the docs. `.gitattributes` exists but has no rule for `*.md`, so text files depend on each machine's `core.autocrlf`. Harmless now; will cause spurious whole-file diffs if a second machine or a Linux CI runner ever touches the repo | — | open — fix during 0.6 (CI) |
 
 ---
 
@@ -91,7 +92,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 
 | ID | Task | Status | Done | Evidence | Notes |
 |---|---|---|---|---|---|
-| 0.1 | Fork branch topology and merge cadence | `wip` | 2026-08-12 | [UPSTREAM.md](UPSTREAM.md) | `origin` → `git@github.com:cikenbrand/mission-capture.git` (empty repo, SSH verified read-only); 22 stale obsproject refs pruned. `upstream` added with **push URL `DISABLED`** — an addition to the plan, verified to fail closed. `develop` branched from `master` at the fork point; `master` kept (not renamed to `main`). Deviation: **no `upstream-tracking` branch** — `remotes/upstream/master` does the same job and can't go stale. Remaining: OI-13 (merge reminder), OI-15 (first push, needs your go-ahead) |
+| 0.1 | Fork branch topology and merge cadence | **`done`** | 2026-08-12 | [UPSTREAM.md](UPSTREAM.md) · `2d5d1942c` | `origin` → `git@github.com:cikenbrand/mission-capture.git`; 22 stale obsproject refs pruned. `upstream` added with **push URL `DISABLED`** — an addition to the plan, verified to fail closed. `master` + `develop` at the fork point, both pushed and tracking. `master` kept (not renamed to `main`). Monthly scheduled task `mission-capture-upstream-merge` reports drift and seam changes — **reports only, never merges**. Deviation: **no `upstream-tracking` branch** — `remotes/upstream/master` does the same job and can't go stale. Carried forward: OI-16 |
 | 0.2 | Rebranding | `todo` | | | |
 | 0.3 | Windows-only build slimming | `todo` | | | |
 | 0.4 | Feature-flag system | `todo` | | | |
