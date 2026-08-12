@@ -88,6 +88,67 @@ Assert-True ($obsHits.Count -eq 0) `
 
 Assert-True ($surfaces.Count -gt 50) "Swept $($surfaces.Count) visible UI strings" 'P1-AC7'
 
+# --- P1-AC1 / P1-AC2: the Layers model ---------------------------------------
+#
+# Task 1.2 builds the model before 1.3 builds the view, so this walks the model
+# as a QTreeView would, via the manifest. The fixture Job has two Canvases; the
+# first holds three Elements stacked Bottom / Middle / Top in libobs order.
+Reset-PortableConfig | Out-Null
+Copy-Fixture -Relative 'jobs\layers-test'
+$layersManifest = Join-Path (Get-RunDir) 'ui-layers.json'
+if (Test-Path $layersManifest) { Remove-Item -Force $layersManifest }
+
+$code = Invoke-App -AppArgs @('--collection', 'layers-test', '--dump-ui-manifest', '../../ui-layers.json') -TimeoutSec 120
+Assert-True ($code -eq 0) 'Manifest dump with the layers fixture exited cleanly' 'P1-AC1'
+
+if (Test-Path $layersManifest) {
+    $lm = Get-Content $layersManifest -Raw | ConvertFrom-Json
+    $canvases = @($lm.layers)
+
+    Assert-True ($canvases.Count -eq 2) "Layers model has 2 Canvases (got $($canvases.Count))" 'P1-AC1'
+
+    $cam1 = $canvases | Where-Object { $_.name -eq 'Camera 1' }
+    $cam2 = $canvases | Where-Object { $_.name -eq 'Camera 2' }
+    Assert-True ($null -ne $cam1 -and $null -ne $cam2) 'Both Canvases present by name' 'P1-AC1'
+
+    if ($cam1) {
+        $els = @($cam1.elements)
+        Assert-True ($els.Count -eq 3) "Camera 1 has 3 Elements (got $($els.Count))" 'P1-AC1'
+
+        # THE assertion this task exists for. libobs enumerates bottom-first;
+        # the tree must show top-first. Row 0 is the topmost Element and maps
+        # to the HIGHEST libobs index. Getting this backwards renders Z-order
+        # upside down and looks like a rendering bug, not a model bug.
+        Assert-True ($els[0].name -eq 'Top' -and $els[0].row -eq 0 -and $els[0].libobsIndex -eq 2) `
+                    'Row 0 is the topmost Element (Top, libobs index 2)' 'P1-AC2'
+        Assert-True ($els[1].name -eq 'Middle' -and $els[1].libobsIndex -eq 1) `
+                    'Row 1 is Middle (libobs index 1)' 'P1-AC2'
+        Assert-True ($els[2].name -eq 'Bottom' -and $els[2].row -eq 2 -and $els[2].libobsIndex -eq 0) `
+                    'Row 2 is the bottommost Element (Bottom, libobs index 0)' 'P1-AC2'
+
+        # parent() must round-trip or the view renders orphaned rows.
+        Assert-True (@($els | Where-Object { -not $_.parentResolves }).Count -eq 0) `
+                    'Every Element resolves back to its Canvas via parent()' 'P1-AC1'
+
+        # Per-Element state is read from libobs, not cached stale.
+        $top = $els | Where-Object { $_.name -eq 'Top' }
+        Assert-True ($top.visible -eq $false -and $top.locked -eq $true) `
+                    'Element visible/locked flags reflect the Job file' 'P1-AC1'
+        Assert-True ($top.sourceId -eq 'color_source_v3') 'Element reports its source id' 'P1-AC1'
+    }
+
+    if ($cam2) {
+        Assert-True (@($cam2.elements).Count -eq 1) 'Camera 2 has 1 Element' 'P1-AC1'
+    }
+
+    # Exactly one Canvas is the program Canvas.
+    $program = @($canvases | Where-Object { $_.program })
+    Assert-True ($program.Count -eq 1 -and $program[0].name -eq 'Camera 1') `
+                "Camera 1 is the program Canvas (found $($program.Count) marked)" 'P1-AC3'
+} else {
+    Add-Failure 'No layers manifest produced' 'P1-AC1'
+}
+
 # --- English is the only language offered ------------------------------------
 $localeIndex = Join-Path (Get-RunDir) 'data\obs-studio\locale.ini'
 if (Test-Path $localeIndex) {

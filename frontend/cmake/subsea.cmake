@@ -9,6 +9,8 @@ target_sources(
     subsea/MCBranding.hpp
     subsea/MCFeatures.cpp
     subsea/MCFeatures.hpp
+    subsea/MCLayersModel.cpp
+    subsea/MCLayersModel.hpp
     subsea/MCUIManifest.cpp
     subsea/MCUIManifest.hpp
 )

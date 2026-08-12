@@ -17,6 +17,7 @@
 
 #include "MCUIManifest.hpp"
 #include "MCFeatures.hpp"
+#include "MCLayersModel.hpp"
 
 #include <OBSApp.hpp>
 #include <widgets/OBSBasic.hpp>
@@ -138,6 +139,50 @@ bool write(OBSBasic *main, const std::string &path)
 		elementTypes.append(entry);
 	}
 	root["elementTypes"] = elementTypes;
+
+	/* --- Layers model ---------------------------------------------------- */
+	/* Task 1.2 builds the model before task 1.3 builds the view, so this is
+	 * how the model's structure and ordering are verified: walk it exactly as
+	 * a QTreeView would and record what it reports. */
+	{
+		MCLayersModel layers;
+		QJsonArray canvases;
+
+		for (int c = 0; c < layers.rowCount(); c++) {
+			const QModelIndex canvasIndex = layers.index(c, 0);
+
+			QJsonObject canvas;
+			canvas["name"] = layers.data(canvasIndex, Qt::DisplayRole).toString();
+			canvas["program"] = layers.data(canvasIndex, MCLayersModel::ProgramRole).toBool();
+
+			QJsonArray elements;
+			for (int e = 0; e < layers.rowCount(canvasIndex); e++) {
+				const QModelIndex elementIndex = layers.index(e, 0, canvasIndex);
+
+				QJsonObject element;
+				element["name"] = layers.data(elementIndex, Qt::DisplayRole).toString();
+				element["sourceId"] = layers.data(elementIndex, MCLayersModel::SourceIdRole).toString();
+				element["visible"] = layers.data(elementIndex, MCLayersModel::VisibleRole).toBool();
+				element["locked"] = layers.data(elementIndex, MCLayersModel::LockedRole).toBool();
+
+				/* The reversal that matters: row 0 must be the topmost
+				 * item, which is the LAST index libobs enumerates. */
+				const int count = layers.rowCount(canvasIndex);
+				element["row"] = e;
+				element["libobsIndex"] = MCLayersModel::toLibobsIndex(e, count);
+
+				/* parent() must round-trip, or the view shows orphans. */
+				element["parentResolves"] = (layers.parent(elementIndex) == canvasIndex);
+
+				elements.append(element);
+			}
+
+			canvas["elements"] = elements;
+			canvases.append(canvas);
+		}
+
+		root["layers"] = canvases;
+	}
 
 	/* --- OBS hotkeys ---------------------------------------------------- */
 	/* Distinct from QAction shortcuts, and this is where the real leak lives:

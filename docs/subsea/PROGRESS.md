@@ -45,7 +45,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 | Phase | Title | Tasks | Done | Status |
 |---|---|---|---|---|
 | [0](phase-0-foundation.md) | Foundation | 7 | **7** | **`done`** |
-| [1](phase-1-shell-and-layers.md) | Shell & Layers tree | 9 | **1** | `wip` |
+| [1](phase-1-shell-and-layers.md) | Shell & Layers tree | 9 | **2** | `wip` |
 | [2](phase-2-video-elements.md) | Video elements | 6 | 0 | `todo` |
 | [3](phase-3-data-core.md) | Data core | 7 | 0 | `todo` |
 | [4](phase-4-overlay-editor.md) | Overlay editor | 8 | 0 | `todo` |
@@ -54,9 +54,9 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 | [7](phase-7-secondary-capture.md) | Secondary capture | 11 | 0 | `todo` |
 | [8](phase-8-sidecar-log.md) | Sidecar log & hardening | 8 | 0 | `todo` |
 | [9](phase-9-webrtc-streaming.md) | WebRTC streaming | 6 | 0 | `todo` |
-| | **Total** | **76** | **8** | |
+| | **Total** | **76** | **9** | |
 
-**Acceptance criteria met:** 6 / 113 — P0-AC1..AC5, evidence in the T0 run report.
+**Acceptance criteria met:** 9 / 113 — P0-AC1..AC5, evidence in the T0 run report.
 
 ---
 
@@ -101,6 +101,8 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | OI-30 | 0.7 | bug | low | GPU utilisation reads 0 throughout the AMF runs — the `GPU Engine(*engtype_VideoEncode)` counter evidently exposes the AMD encode engine under a different instance name. The figure is missing, not zero. Fix before the real-machine run | 0.7 rerun | open |
 | OI-31 | 0.7 | risk | med | The benchmark measures **encode only** — no capture, compositing, overlay rendering or muxing running alongside, and 10-second runs so no thermal throttling. Real recording will have materially less headroom than these figures suggest | 6.6, 8.8 | open |
 | OI-32 | 1.1 | bug | **high** | **The test harness was never committed.** Root `.gitignore` is an allowlist (`/*` then `!/dir`) and `tools/` was not on it, so everything added under `tools/subsea-tests` in 0.5–0.7 was invisible to git — `git status` reported a clean tree throughout. `THIRD_PARTY_NOTICES.md` (the GPLv2 source offer) was ignored the same way. CI would have failed on its first run. Both allowlisted in commit `4fe7e82d1` | — | ✅ **closed 2026-08-13** |
+| OI-33 | 1.2 | debt | med | **Canvas ordering is libobs enumeration order, not user order.** Upstream keeps scene order in the Scenes QListWidget and persists it as `scene_order`; the model does not read or write that yet, so drag-reordering Canvases and round-tripping through a Job save is unimplemented. Belongs with 1.3/1.4 when the tree becomes the order authority | 1.3, 1.4 | open |
+| OI-34 | 1.2 | debt | low | Element add/remove refreshes a Canvas`s whole child block rather than the single affected row, because the signal does not say which position changed. Correct and scoped to one Canvas, but a diff would preserve selection better. Revisit if it feels wrong in the real widget | 1.3 | open |
 
 ---
 
@@ -121,7 +123,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | ID | Task | Status | Done | Evidence | Notes |
 |---|---|---|---|---|---|
 | 1.1 | Terminology | **`done`** | 2026-08-13 | `T1: PASS` — 122 UI strings swept, 0 banned terms | 131 locale strings renamed to Canvas/Element/Job/Rig, values only, keys untouched. Found and fixed **two collisions with OBS`s own "canvas"** (base output resolution) and two article-agreement bugs the rename introduced ("a element"). Also cleared **33 strings still saying OBS** — 0.2 debt that never reached the locale file. Rather than deleting 76 translation files, trimmed `locale.ini` to en-US: the files stay mergeable, but no stale translation can be selected, and a non-English Windows will not auto-pick one. `CODING.md` written. T1 suite created as a permanent regression guard |
-| 1.2 | `MCLayersModel` | `todo` | | | |
+| 1.2 | `MCLayersModel` | **`done`** | 2026-08-13 | `T1: PASS` — 12 model assertions incl. the Z-order reversal | Two-level `QAbstractItemModel` over the main render target`s scenes. Row↔libobs index reversal implemented and **asserted against a fixture Job with a known stack** (Top/Middle/Bottom). All libobs signal handlers marshal to the Qt thread. Reorder emits `dataChanged` rather than remove/insert, so selection and scroll survive. Groups flattened (three element types, no grouping) with polymorphic nodes so a recursive model stays possible. **Verified without a view** by dumping the model through the UI manifest — 1.3 builds the widget. Found a real bug doing so: `ProgramRole` used `obs_get_output_source(0)`, which returns the *transition*, not the scene, so no Canvas ever showed as program |
 | 1.3 | `MCLayersTree` and delegate | `todo` | | | |
 | 1.4 | Wire the tree in, retire the old docks | `todo` | | | Seam #11, most merge-fragile |
 | 1.5 | UI surface audit and hiding | `todo` | | | |

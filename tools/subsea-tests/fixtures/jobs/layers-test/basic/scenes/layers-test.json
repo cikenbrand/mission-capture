@@ -1,0 +1,26 @@
+{
+  "current_scene": "Camera 1",
+  "current_program_scene": "Camera 1",
+  "name": "layers-test",
+  "scene_order": [{"name": "Camera 1"}, {"name": "Camera 2"}],
+  "sources": [
+    {
+      "id": "scene", "name": "Camera 1", "versioned_id": "scene",
+      "settings": {"items": [
+        {"name": "Bottom", "visible": true, "locked": false, "pos": {"x":0,"y":0}, "scale": {"x":1,"y":1}, "align": 5, "bounds_type": 0, "bounds": {"x":0,"y":0}},
+        {"name": "Middle", "visible": true, "locked": false, "pos": {"x":0,"y":0}, "scale": {"x":1,"y":1}, "align": 5, "bounds_type": 0, "bounds": {"x":0,"y":0}},
+        {"name": "Top",    "visible": false, "locked": true, "pos": {"x":0,"y":0}, "scale": {"x":1,"y":1}, "align": 5, "bounds_type": 0, "bounds": {"x":0,"y":0}}
+      ]}
+    },
+    {
+      "id": "scene", "name": "Camera 2", "versioned_id": "scene",
+      "settings": {"items": [
+        {"name": "Solo", "visible": true, "locked": false, "pos": {"x":0,"y":0}, "scale": {"x":1,"y":1}, "align": 5, "bounds_type": 0, "bounds": {"x":0,"y":0}}
+      ]}
+    },
+    {"id": "color_source_v3", "name": "Bottom", "versioned_id": "color_source_v3", "settings": {"color": 4278190335, "width": 1920, "height": 1080}},
+    {"id": "color_source_v3", "name": "Middle", "versioned_id": "color_source_v3", "settings": {"color": 4278255360, "width": 1920, "height": 1080}},
+    {"id": "color_source_v3", "name": "Top",    "versioned_id": "color_source_v3", "settings": {"color": 4294901760, "width": 1920, "height": 1080}},
+    {"id": "color_source_v3", "name": "Solo",   "versioned_id": "color_source_v3", "settings": {"color": 4294967040, "width": 1920, "height": 1080}}
+  ]
+}
