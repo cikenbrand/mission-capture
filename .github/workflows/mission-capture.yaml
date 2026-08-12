@@ -69,12 +69,19 @@ jobs:
 
       # The prebuilt dependency bundles are ~1 GB and unchanged between runs
       # unless buildspec.json moves.
-      - name: Cache dependencies
-        uses: actions/cache@v5
+      #
+      # Restore and save are split deliberately. actions/cache saves at post-job
+      # even when the job failed, so a run that dies part-way through the
+      # dependency download poisons the cache, and every later run restores the
+      # half-written copy. That matches what was seen here: one run spent 47s in
+      # Configure while the runs on either side of it failed in 2s. Only a
+      # successful build is worth keeping.
+      - name: Restore dependency cache
+        id: deps-cache
+        uses: actions/cache/restore@v5
         with:
           path: .deps
-          key: deps-windows-x64-${{ hashFiles('buildspec.json') }}
-          restore-keys: deps-windows-x64-
+          key: deps-windows-x64-v2-${{ hashFiles('buildspec.json') }}
 
       - name: Configure
         run: cmake --preset windows-subsea-ci-x64
@@ -96,6 +103,13 @@ jobs:
           Write-Host "CompanyName: $($vi.CompanyName)"
           if ($vi.ProductName -ne 'Mission Capture')      { throw 'ProductName is not Mission Capture' }
           if ($vi.CompanyName -ne 'Cyberian Resources')   { throw 'CompanyName is not Cyberian Resources' }
+
+      - name: Save dependency cache
+        if: success() && steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: .deps
+          key: deps-windows-x64-v2-${{ hashFiles('buildspec.json') }}
 
       - name: Upload build
         uses: actions/upload-artifact@v5
