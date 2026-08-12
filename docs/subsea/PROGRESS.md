@@ -1,0 +1,225 @@
+# Progress tracker
+
+**The single source of truth for what is done, what is not, and what is in the way.**
+
+Phase docs are the *specification* and never carry status. Status lives here and only here, so
+there is nothing to keep in sync.
+
+---
+
+## How this is maintained
+
+**At the end of every task**, three things happen without being asked:
+
+1. **Mark the task** — status → `done`, fill in the date, link the evidence.
+2. **Note anything non-obvious** — what changed from the plan, what was cut, what surprised us.
+   A blank Notes cell means "went as written", which is genuinely informative.
+3. **Update the open-items register** — log anything discovered that isn't being fixed now (a bug,
+   a deferred piece, an unmet dependency, a question for you), and close any item this task
+   resolved.
+
+### Definition of done
+
+A task is `done` only when all of these hold. Anything short of it stays `in progress`.
+
+- Code is written, builds clean, and is committed on a `feature/mc-*` branch
+- Its tests exist and pass, with a run report as evidence
+- Acceptance criteria it touches are tagged with `-Criterion` IDs
+      (see [testing.md § Run reports](testing.md#run-reports))
+- Anything left behind is in the open-items register below — not in someone's head
+
+### Status vocabulary
+
+| Status | Meaning |
+|---|---|
+| `todo` | Not started |
+| `wip` | In progress |
+| `blocked` | Cannot proceed — must have a linked open item saying why |
+| `done` | Meets the definition above |
+| `cut` | Deliberately dropped — Notes must say why |
+
+---
+
+## Summary
+
+| Phase | Title | Tasks | Done | Status |
+|---|---|---|---|---|
+| [0](phase-0-foundation.md) | Foundation | 7 | 0 | `todo` |
+| [1](phase-1-shell-and-layers.md) | Shell & Layers tree | 9 | 0 | `todo` |
+| [2](phase-2-video-elements.md) | Video elements | 6 | 0 | `todo` |
+| [3](phase-3-data-core.md) | Data core | 7 | 0 | `todo` |
+| [4](phase-4-overlay-editor.md) | Overlay editor | 8 | 0 | `todo` |
+| [5](phase-5-transports.md) | Transports & config UI | 6 | 0 | `todo` |
+| [6](phase-6-multi-record.md) | Multi-canvas recording | 8 | 0 | `todo` |
+| [7](phase-7-secondary-capture.md) | Secondary capture | 11 | 0 | `todo` |
+| [8](phase-8-sidecar-log.md) | Sidecar log & hardening | 8 | 0 | `todo` |
+| [9](phase-9-webrtc-streaming.md) | WebRTC streaming | 6 | 0 | `todo` |
+| | **Total** | **76** | **0** | |
+
+**Acceptance criteria met:** 0 / 113 — evidence tracked per-criterion in the run reports.
+
+---
+
+## Open items
+
+Everything discovered but not resolved. **This table is the point of the tracker** — a task list
+tells you what's left to build, this tells you what's waiting to bite.
+
+Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
+
+| ID | Raised in | Type | Sev | Item | Blocks | Status |
+|---|---|---|---|---|---|---|
+| OI-1 | planning | question | med | Clip preroll default — how many seconds before the button press should a clip include? Sizes the packet ring's memory budget | 7.1 | open — ask at Phase 7 |
+| OI-2 | planning | question | high | Client deliverable format — required CSV columns, header naming, timestamp format, filename convention, any IMCA/in-house spec | 8.2 | open — ask at Phase 8 |
+| OI-3 | planning | question | high | Event marking scope — vocabulary fixed or free-text, own row/column/file, should the hotkey also fire a clip, append-only or editable | 8.6, 8.2 | open — ask at Phase 8 |
+| OI-4 | planning | question | med | Real channel count and data rate, and the RS-232 line settings actually in use | 3.1, 5.1 | open — ask at Phase 3, again at Phase 5 |
+| OI-5 | planning | dependency | high | Encoder-session limits on the real AMD and NVIDIA target machines are unmeasured. The Phase 6 resource guard is designed around a number we don't have | 6.6 | open — resolved by 0.7 |
+| OI-6 | planning | dependency | med | Capture-hardware inventory — which DeckLink and AVerMedia models, plus "there may be other capture cards as well" | 2.1, 2.2 | open — resolved by 0.7 |
+| OI-7 | planning | risk | med | Audio-encoder fan-out across simultaneously-started outputs is inferred from `obs_encoder_add_output`'s DARRAY, not yet proven. Fallback is one audio encoder per recorder | 6.2 | open — verify early in 6.2 |
+| OI-8 | planning | risk | med | An `EPHEMERAL \| ACTIVATE` private render target keeping its sources active while not the program Canvas is the premise of the whole recording feature, and is unverified | 6.2 | open — verify early in 6.2 |
+| OI-9 | planning | debt | low | Phase docs' 113 acceptance criteria have no `-Criterion` IDs stamped yet; done per phase as its tests are written | — | open — rolling |
+| OI-10 | planning | deferred | low | Phase completion reports declined in favour of run reports only. Run reports cover verification but record nothing about mid-phase cuts, deferrals, or plan deviations — that gap is now covered by this tracker's Notes column | — | accepted |
+| OI-11 | planning | deferred | low | Clean (overlay-free) *video* copy is out of scope. Clean *stills* are in, via Phase 7 snapshots | — | closed by decision |
+| OI-12 | 0.1 | dependency | high | `origin` pointed at `obsproject/obs-studio` | 0.1 | ✅ **closed 2026-08-12** — repointed to `cikenbrand/mission-capture`, stale refs pruned |
+| OI-13 | 0.1 | question | low | Monthly upstream-merge reminder not yet set. Can be a scheduled task, a calendar entry, or a CI cron that opens an issue — your call | 0.1 | **open — needs you** |
+| OI-14 | 0.1 | debt | low | `docs/subsea/` is untracked and uncommitted | — | open — clears with OI-15 |
+| OI-15 | 0.1 | question | med | Nothing has been committed or pushed. First push sends the full OBS history (~1 GB) to your repo and, if it is public, publishes it. Needs your explicit go-ahead | OI-14 | **open — needs you** |
+
+---
+
+## Phase 0 — Foundation
+
+| ID | Task | Status | Done | Evidence | Notes |
+|---|---|---|---|---|---|
+| 0.1 | Fork branch topology and merge cadence | `wip` | 2026-08-12 | [UPSTREAM.md](UPSTREAM.md) | `origin` → `git@github.com:cikenbrand/mission-capture.git` (empty repo, SSH verified read-only); 22 stale obsproject refs pruned. `upstream` added with **push URL `DISABLED`** — an addition to the plan, verified to fail closed. `develop` branched from `master` at the fork point; `master` kept (not renamed to `main`). Deviation: **no `upstream-tracking` branch** — `remotes/upstream/master` does the same job and can't go stale. Remaining: OI-13 (merge reminder), OI-15 (first push, needs your go-ahead) |
+| 0.2 | Rebranding | `todo` | | | |
+| 0.3 | Windows-only build slimming | `todo` | | | |
+| 0.4 | Feature-flag system | `todo` | | | |
+| 0.5 | Test harness bring-up | `todo` | | | |
+| 0.6 | CI reduction | `todo` | | | |
+| 0.7 | Baseline hardware benchmark | `todo` | | | Resolves OI-5, OI-6 |
+
+## Phase 1 — Shell and the Layers tree
+
+| ID | Task | Status | Done | Evidence | Notes |
+|---|---|---|---|---|---|
+| 1.1 | Terminology | `todo` | | | |
+| 1.2 | `MCLayersModel` | `todo` | | | |
+| 1.3 | `MCLayersTree` and delegate | `todo` | | | |
+| 1.4 | Wire the tree in, retire the old docks | `todo` | | | Seam #11, most merge-fragile |
+| 1.5 | UI surface audit and hiding | `todo` | | | |
+| 1.6 | Element type restriction | `todo` | | | |
+| 1.7 | Inspection-appropriate defaults | `todo` | | | |
+| 1.8 | New Job wizard | `todo` | | | |
+| 1.9 | Recording-safety affordances | `todo` | | | |
+
+## Phase 2 — Video elements
+
+| ID | Task | Status | Done | Evidence | Notes |
+|---|---|---|---|---|---|
+| 2.1 | Unified Video Capture Device element | `todo` | | | Needs OI-6 |
+| 2.2 | Simplified capture properties | `todo` | | | Needs OI-6 |
+| 2.3 | Device loss and recovery | `todo` | | | |
+| 2.4 | RTSP Camera element | `todo` | | | |
+| 2.5 | Add Element picker | `todo` | | | |
+| 2.6 | Latency and health measurement | `todo` | | | |
+
+## Phase 3 — Data core
+
+| ID | Task | Status | Done | Evidence | Notes |
+|---|---|---|---|---|---|
+| 3.1 | Channel registry | `todo` | | | Needs OI-4 · unblocks Phase 4 |
+| 3.2 | Frame assembler | `todo` | | | |
+| 3.3 | Parsers | `todo` | | | |
+| 3.4 | Channel transforms | `todo` | | | |
+| 3.5 | Simulator transport | `todo` | | | Unblocks Phase 4 testing |
+| 3.6 | Configuration persistence | `todo` | | | |
+| 3.7 | Plugin shell and websocket vendor API | `todo` | | | Test hook for every later phase |
+
+## Phase 4 — Overlay editor
+
+| ID | Task | Status | Done | Evidence | Notes |
+|---|---|---|---|---|---|
+| 4.1 | Template store | `todo` | | | |
+| 4.2 | `mc_text` data-bound source | `todo` | | | |
+| 4.3 | Overlay Edit mode controller | `todo` | | | |
+| 4.4 | Overlay Items list | `todo` | | | |
+| 4.5 | Item types | `todo` | | | |
+| 4.6 | Assignment to Canvases | `todo` | | | |
+| 4.7 | Update-rate control | `todo` | | | |
+| 4.8 | Import / export | `todo` | | | |
+
+## Phase 5 — Transports and configuration UI
+
+| ID | Task | Status | Done | Evidence | Notes |
+|---|---|---|---|---|---|
+| 5.1 | Serial transport (Win32) | `todo` | | | Needs OI-4 |
+| 5.2 | Network transports | `todo` | | | |
+| 5.3 | Device manager dialog | `todo` | | | |
+| 5.4 | Parser configuration wizard | `todo` | | | Highest-value UI in the phase |
+| 5.5 | Channels view | `todo` | | | |
+| 5.6 | Settings integration and status | `todo` | | | |
+
+## Phase 6 — Multi-Canvas recording
+
+| ID | Task | Status | Done | Evidence | Notes |
+|---|---|---|---|---|---|
+| 6.1 | Per-Canvas recording configuration | `todo` | | | |
+| 6.2 | `MCCanvasRecorder` | `todo` | | | Verify OI-7 and OI-8 before building on them |
+| 6.3 | `MCRecordingManager` | `todo` | | | |
+| 6.4 | Record panel | `todo` | | | |
+| 6.5 | Hotkeys | `todo` | | | |
+| 6.6 | Resource guard | `todo` | | | Needs OI-5 |
+| 6.7 | Filename templating | `todo` | | | |
+| 6.8 | Auto-split and continuity | `todo` | | | |
+
+## Phase 7 — Secondary capture
+
+| ID | Task | Status | Done | Evidence | Notes |
+|---|---|---|---|---|---|
+| 7.1 | Encoder sharing and the packet ring | `todo` | | | Needs OI-1 |
+| 7.2 | Independence guarantees | `todo` | | | |
+| 7.3 | Clip control UI | `todo` | | | |
+| 7.4 | Naming and organisation | `todo` | | | |
+| 7.5 | Hotkeys | `todo` | | | |
+| 7.6 | Data log integration | `todo` | | | Depends on 8.1 |
+| 7.7 | Snapshot capture engine | `todo` | | | Only needs Phases 1, 2, 4 — can move earlier |
+| 7.8 | Preview gallery | `todo` | | | |
+| 7.9 | Saving, formats, and naming | `todo` | | | |
+| 7.10 | Data metadata | `todo` | | | |
+| 7.11 | Snapshot control and hotkeys | `todo` | | | |
+
+## Phase 8 — Sidecar data log and hardening
+
+| ID | Task | Status | Done | Evidence | Notes |
+|---|---|---|---|---|---|
+| 8.1 | Log writer | `todo` | | | |
+| 8.2 | CSV format | `todo` | | | Needs OI-2, OI-3 |
+| 8.3 | Manifest and clock sync | `todo` | | | |
+| 8.4 | Raw log | `todo` | | | |
+| 8.5 | Integration with multi-record and clips | `todo` | | | |
+| 8.6 | Event marking | `todo` | | | Needs OI-3 |
+| 8.7 | Post-dive review tooling (spec only) | `todo` | | | Specification, no code |
+| 8.8 | Hardening and soak | `todo` | | | |
+
+## Phase 9 — WebRTC streaming
+
+| ID | Task | Status | Done | Evidence | Notes |
+|---|---|---|---|---|---|
+| 9.1 | Simplified stream configuration | `todo` | | | |
+| 9.2 | Choosing what to stream | `todo` | | | |
+| 9.3 | Resource-guard integration | `todo` | | | |
+| 9.4 | Connection resilience | `todo` | | | |
+| 9.5 | Server-side documentation | `todo` | | | |
+| 9.6 | Keep SRT and RIST reachable | `todo` | | | |
+
+---
+
+## Upstream merges
+
+Kept here rather than in a separate file so there is one place to look. Monthly cadence
+([Phase 0 task 0.1](phase-0-foundation.md)).
+
+| Date | Upstream commit | Conflicts | Seams touched | Notes |
+|---|---|---|---|---|
+| — | fork point `14e3dae77` | — | — | Baseline |
