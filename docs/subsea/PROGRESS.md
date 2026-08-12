@@ -45,7 +45,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 | Phase | Title | Tasks | Done | Status |
 |---|---|---|---|---|
 | [0](phase-0-foundation.md) | Foundation | 7 | **7** | **`done`** |
-| [1](phase-1-shell-and-layers.md) | Shell & Layers tree | 9 | 0 | `todo` |
+| [1](phase-1-shell-and-layers.md) | Shell & Layers tree | 9 | **1** | `wip` |
 | [2](phase-2-video-elements.md) | Video elements | 6 | 0 | `todo` |
 | [3](phase-3-data-core.md) | Data core | 7 | 0 | `todo` |
 | [4](phase-4-overlay-editor.md) | Overlay editor | 8 | 0 | `todo` |
@@ -54,9 +54,9 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 | [7](phase-7-secondary-capture.md) | Secondary capture | 11 | 0 | `todo` |
 | [8](phase-8-sidecar-log.md) | Sidecar log & hardening | 8 | 0 | `todo` |
 | [9](phase-9-webrtc-streaming.md) | WebRTC streaming | 6 | 0 | `todo` |
-| | **Total** | **76** | **7** | |
+| | **Total** | **76** | **8** | |
 
-**Acceptance criteria met:** 5 / 113 — P0-AC1..AC5, evidence in the T0 run report.
+**Acceptance criteria met:** 6 / 113 — P0-AC1..AC5, evidence in the T0 run report.
 
 ---
 
@@ -77,7 +77,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | OI-6 | planning | dependency | med | Capture-hardware inventory — which DeckLink and AVerMedia models, plus "there may be other capture cards as well" | 2.1, 2.2 | **open — no capture hardware connected during 0.7.** Note DeckLink needs Blackmagic Desktop Video installed; UVC/DirectShow devices do not |
 | OI-7 | planning | risk | med | Audio-encoder fan-out across simultaneously-started outputs is inferred from `obs_encoder_add_output`'s DARRAY, not yet proven. Fallback is one audio encoder per recorder | 6.2 | open — verify early in 6.2 |
 | OI-8 | planning | risk | med | An `EPHEMERAL \| ACTIVATE` private render target keeping its sources active while not the program Canvas is the premise of the whole recording feature, and is unverified | 6.2 | open — verify early in 6.2 |
-| OI-9 | planning | debt | low | Phase docs' 113 acceptance criteria have no `-Criterion` IDs stamped yet; done per phase as its tests are written | — | open — rolling |
+| OI-9 | planning | debt | low | Acceptance criteria need `-Criterion` IDs stamped per phase as its tests are written | — | open — rolling; **Phase 0 and Phase 1 done** |
 | OI-10 | planning | deferred | low | Phase completion reports declined in favour of run reports only. Run reports cover verification but record nothing about mid-phase cuts, deferrals, or plan deviations — that gap is now covered by this tracker's Notes column | — | accepted |
 | OI-11 | planning | deferred | low | Clean (overlay-free) *video* copy is out of scope. Clean *stills* are in, via Phase 7 snapshots | — | closed by decision |
 | OI-12 | 0.1 | dependency | high | `origin` pointed at `obsproject/obs-studio` | 0.1 | ✅ **closed 2026-08-12** — repointed to `cikenbrand/mission-capture`, stale refs pruned |
@@ -119,7 +119,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 
 | ID | Task | Status | Done | Evidence | Notes |
 |---|---|---|---|---|---|
-| 1.1 | Terminology | `todo` | | | |
+| 1.1 | Terminology | **`done`** | 2026-08-13 | `T1: PASS` — 122 UI strings swept, 0 banned terms | 131 locale strings renamed to Canvas/Element/Job/Rig, values only, keys untouched. Found and fixed **two collisions with OBS`s own "canvas"** (base output resolution) and two article-agreement bugs the rename introduced ("a element"). Also cleared **33 strings still saying OBS** — 0.2 debt that never reached the locale file. Rather than deleting 76 translation files, trimmed `locale.ini` to en-US: the files stay mergeable, but no stale translation can be selected, and a non-English Windows will not auto-pick one. `CODING.md` written. T1 suite created as a permanent regression guard |
 | 1.2 | `MCLayersModel` | `todo` | | | |
 | 1.3 | `MCLayersTree` and delegate | `todo` | | | |
 | 1.4 | Wire the tree in, retire the old docks | `todo` | | | Seam #11, most merge-fragile |

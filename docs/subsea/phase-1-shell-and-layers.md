@@ -186,20 +186,20 @@ what [Phase 8](phase-8-sidecar-log.md)'s manifest reads.
 
 ## Acceptance criteria
 
-- [ ] One Layers panel shows Canvases with their Elements nested, both levels visible at once
-- [ ] Element order in the tree matches Z-order in the preview (top row = drawn last)
-- [ ] Selecting a Canvas makes it program; selecting an Element selects it in the preview
-- [ ] Drag-reorder within a Canvas and drag-move between Canvases both work and persist
-- [ ] Selection never loops between tree and preview
-- [ ] Renaming, adding, and removing — from the tree or an external trigger — updates the tree
+- [ ] `P1-AC1` One Layers panel shows Canvases with their Elements nested, both levels visible at once
+- [ ] `P1-AC2` Element order in the tree matches Z-order in the preview (top row = drawn last)
+- [ ] `P1-AC3` Selecting a Canvas makes it program; selecting an Element selects it in the preview
+- [ ] `P1-AC4` Drag-reorder within a Canvas and drag-move between Canvases both work and persist
+- [ ] `P1-AC5` Selection never loops between tree and preview
+- [ ] `P1-AC6` Renaming, adding, and removing — from the tree or an external trigger — updates the tree
       without a full reset or a scroll jump
-- [ ] The UI says Canvas / Element / Layers / Job / Rig everywhere; no "Scene" or "Source" visible
-- [ ] The UI manifest matches the signed-off audit table exactly
-- [ ] No hidden feature is reachable by hotkey, menu, dock menu, or restored dock layout
-- [ ] Only three element types offered; others restorable by flag
-- [ ] A fresh install goes from launch to recording in under 60 seconds with no settings visits
-- [ ] Killing the app mid-recording leaves a playable file
-- [ ] No upstream `.cpp` had logic rewritten — only the documented seams touched
+- [ ] `P1-AC7` The UI says Canvas / Element / Layers / Job / Rig everywhere; no "Scene" or "Source" visible
+- [ ] `P1-AC8` The UI manifest matches the signed-off audit table exactly
+- [ ] `P1-AC9` No hidden feature is reachable by hotkey, menu, dock menu, or restored dock layout
+- [ ] `P1-AC10` Only three element types offered; others restorable by flag
+- [ ] `P1-AC11` A fresh install goes from launch to recording in under 60 seconds with no settings visits
+- [ ] `P1-AC12` Killing the app mid-recording leaves a playable file
+- [ ] `P1-AC13` No upstream `.cpp` had logic rewritten — only the documented seams touched
 
 ---
 
