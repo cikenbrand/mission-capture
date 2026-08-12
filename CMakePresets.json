@@ -318,10 +318,6 @@
       "binaryDir": "${sourceDir}/build_x64",
       "generator": "Visual Studio 17 2022",
       "cacheVariables": {
-        "OBS_VERSION_OVERRIDE": {
-          "type": "STRING",
-          "value": "0.1.0"
-        },
         "GPU_PRIORITY_VAL": {
           "type": "STRING",
           "value": "$penv{GPU_PRIORITY_VAL}"
