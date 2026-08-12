@@ -1,0 +1,142 @@
+name: Mission Capture CI
+run-name: ${{ github.ref_name }} - ${{ github.event_name }}
+
+# The only workflow that runs automatically in this fork. Upstream's workflows
+# are kept in the tree (so their changes merge cleanly) but have had their
+# triggers removed -- they build for macOS and Linux, sign binaries, and publish
+# on the OBS Project's behalf. See docs/subsea/phase-0-foundation.md task 0.6.
+
+on:
+  push:
+    branches: [master, develop]
+    paths-ignore: ['**.md', 'docs/**']
+  pull_request:
+    branches: [master, develop]
+    paths-ignore: ['**.md', 'docs/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Upstream's check-format.yaml also runs swift-format on a macOS runner.
+      # This fork has no Swift and macOS minutes bill at ten times the Linux
+      # rate, so the two checks that apply are invoked directly instead.
+      - name: clang-format
+        uses: ./.github/actions/run-clang-format
+        with:
+          failCondition: error
+
+      - name: gersemi
+        uses: ./.github/actions/run-gersemi
+        with:
+          failCondition: error
+
+  build:
+    name: Build and test (Windows x64)
+    # windows-2022 matches the "Visual Studio 17 2022" generator the preset
+    # pins, and its image carries the ATL component that win-dshow needs via
+    # Elgato's capture-device-support.
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Verify ATL is present
+        shell: pwsh
+        run: |
+          # Fail with a clear message rather than an obscure C1083 later.
+          $atl = Get-ChildItem 'C:\Program Files*\Microsoft Visual Studio\2022\*\VC\Tools\MSVC' `
+                   -Recurse -Filter atlbase.h -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $atl) {
+            throw 'Visual Studio ATL component not found. win-dshow cannot compile without it.'
+          }
+          Write-Host "ATL found: $($atl.FullName)"
+
+      # The prebuilt dependency bundles are ~1 GB and unchanged between runs
+      # unless buildspec.json moves.
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: .deps
+          key: deps-windows-x64-${{ hashFiles('buildspec.json') }}
+          restore-keys: deps-windows-x64-
+
+      - name: Configure
+        run: cmake --preset windows-subsea-ci-x64
+
+      - name: Build
+        run: cmake --build --preset windows-subsea-ci-x64
+
+      - name: Unit tests
+        working-directory: build_x64
+        run: ctest -C RelWithDebInfo --output-on-failure
+
+      - name: Verify branding
+        shell: pwsh
+        run: |
+          $exe = 'build_x64/rundir/RelWithDebInfo/bin/64bit/MissionCapture64.exe'
+          if (-not (Test-Path $exe)) { throw "Executable not produced: $exe" }
+          $vi = (Get-Item $exe).VersionInfo
+          Write-Host "ProductName: $($vi.ProductName)"
+          Write-Host "CompanyName: $($vi.CompanyName)"
+          if ($vi.ProductName -ne 'Mission Capture')      { throw 'ProductName is not Mission Capture' }
+          if ($vi.CompanyName -ne 'Cyberian Resources')   { throw 'CompanyName is not Cyberian Resources' }
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: mission-capture-windows-x64
+          path: build_x64/rundir/RelWithDebInfo
+          retention-days: 14
+
+  smoke:
+    name: Smoke test (T0)
+    needs: build
+    runs-on: windows-2022
+    # NOT YET REQUIRED. T0 launches the application, which needs a D3D11 device;
+    # hosted runners have no GPU and fall back to the WARP software renderer.
+    # Whether OBS initialises under WARP has not been established. Left
+    # non-blocking so the first runs tell us, rather than turning CI red on
+    # something unrelated to the change under test. Flip this to false -- and
+    # move the step into the build job -- once a few runs have proven it stable.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: mission-capture-windows-x64
+          path: build_x64/rundir/RelWithDebInfo
+
+      - name: Run T0 foundation suite
+        shell: pwsh
+        run: .\tools\subsea-tests\t0-foundation.ps1
+
+      # Always upload: a failed run is exactly when the report and the
+      # application log are worth reading.
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: tools/subsea-tests/out
+          retention-days: 14
+          if-no-files-found: warn

@@ -1,12 +1,10 @@
 name: Publish
 run-name: Publish Repository Actions 🛫
+# Mission Capture: upstream release trigger disabled. This publishes builds,
+# signs them, and uploads to Steam and the OBS update servers. Kept for
+# mergeability; releasing Mission Capture is a separate, unbuilt job (OI-20).
 on:
-  release:
-    types:
-      - published
-    branches:
-      - master
-      - 'release/**'
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:

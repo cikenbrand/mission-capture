@@ -1,14 +1,16 @@
 name: Push
 run-name: ${{ github.ref_name }} push run 🚀
+# Mission Capture: upstream trigger disabled.
+#
+# This workflow builds for macOS and Linux, validates services, signs binaries
+# and publishes releases -- none of which apply to this fork, and several of
+# which would act on the OBS Project's behalf. The file is kept rather than
+# deleted so upstream changes to it still merge cleanly; only the trigger is
+# removed, leaving it runnable by hand if we ever want it.
+#
+# Mission Capture CI lives in mission-capture.yaml.
 on:
-  push:
-    paths-ignore:
-      - '**.md'
-    branches:
-      - master
-      - 'release/**'
-    tags:
-      - '*'
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:

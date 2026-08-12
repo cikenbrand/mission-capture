@@ -305,9 +305,7 @@
       }
     },
     {
-      "name": "windows-subsea-x64",
-      "displayName": "Mission Capture (Windows x64)",
-      "description": "Slimmed Windows-only build for the subsea inspection DVR",
+      "name": "windows-subsea-base-x64",
       "inherits": [
         "environmentVars"
       ],
@@ -345,12 +343,32 @@
         "ENABLE_NVAFX": false,
         "ENABLE_NVVFX": false,
         "ENABLE_COREAUDIO_ENCODER": false,
+        "ENABLE_UNIT_TESTS": true
+      },
+      "hidden": true
+    },
+    {
+      "name": "windows-subsea-x64",
+      "displayName": "Mission Capture (Windows x64)",
+      "description": "Local developer build. Pins the Visual Studio instance that has the ATL component.",
+      "inherits": [
+        "windows-subsea-base-x64"
+      ],
+      "cacheVariables": {
         "CMAKE_GENERATOR_INSTANCE": {
           "type": "PATH",
           "value": "C:/Program Files/Microsoft Visual Studio/2022/Community"
-        },
-        "ENABLE_UNIT_TESTS": true
+        }
       }
+    },
+    {
+      "name": "windows-subsea-ci-x64",
+      "displayName": "Mission Capture (Windows x64, CI)",
+      "description": "CI build. No Visual Studio instance pin -- runners have a single install.",
+      "inherits": [
+        "windows-subsea-base-x64"
+      ],
+      "binaryDir": "${sourceDir}/build_x64"
     }
   ],
   "buildPresets": [
@@ -373,6 +391,12 @@
       "configurePreset": "windows-subsea-x64",
       "displayName": "Mission Capture (Windows x64)",
       "description": "Slimmed Windows-only build for the subsea inspection DVR",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "windows-subsea-ci-x64",
+      "configurePreset": "windows-subsea-ci-x64",
+      "displayName": "Mission Capture (Windows x64, CI)",
       "configuration": "RelWithDebInfo"
     }
   ]

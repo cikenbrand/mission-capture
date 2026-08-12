@@ -1,12 +1,10 @@
 name: Pull
 run-name: ${{ github.event.pull_request.title }} pull request run 🚀
+# Mission Capture: upstream pull_request trigger disabled -- it fans out to the
+# full multi-platform build. Kept for mergeability; our PR CI is in
+# mission-capture.yaml.
 on:
   workflow_dispatch:
-  pull_request:
-    paths-ignore:
-      - '**.md'
-    branches: [master]
-    types: [ opened, synchronize, reopened ]
 permissions:
   contents: read
 concurrency:

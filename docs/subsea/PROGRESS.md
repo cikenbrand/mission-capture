@@ -44,7 +44,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 
 | Phase | Title | Tasks | Done | Status |
 |---|---|---|---|---|
-| [0](phase-0-foundation.md) | Foundation | 7 | **5** | `wip` |
+| [0](phase-0-foundation.md) | Foundation | 7 | **6** | `wip` |
 | [1](phase-1-shell-and-layers.md) | Shell & Layers tree | 9 | 0 | `todo` |
 | [2](phase-2-video-elements.md) | Video elements | 6 | 0 | `todo` |
 | [3](phase-3-data-core.md) | Data core | 7 | 0 | `todo` |
@@ -54,7 +54,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 | [7](phase-7-secondary-capture.md) | Secondary capture | 11 | 0 | `todo` |
 | [8](phase-8-sidecar-log.md) | Sidecar log & hardening | 8 | 0 | `todo` |
 | [9](phase-9-webrtc-streaming.md) | WebRTC streaming | 6 | 0 | `todo` |
-| | **Total** | **76** | **5** | |
+| | **Total** | **76** | **6** | |
 
 **Acceptance criteria met:** 5 / 113 — P0-AC1..AC5, evidence in the T0 run report.
 
@@ -84,7 +84,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | OI-13 | 0.1 | question | low | Monthly upstream-merge reminder | 0.1 | ✅ **closed 2026-08-12** — scheduled task `mission-capture-upstream-merge`, 09:00 on the 1st monthly |
 | OI-14 | 0.1 | debt | low | `docs/subsea/` untracked and uncommitted | — | ✅ **closed 2026-08-12** — commit `2d5d1942c` |
 | OI-15 | 0.1 | question | med | First push not yet authorised | OI-14 | ✅ **closed 2026-08-12** — `master` and `develop` pushed, tracking set |
-| OI-16 | 0.1 | debt | low | Line endings: git warns `LF will be replaced by CRLF` for the docs. `.gitattributes` exists but has no rule for `*.md`, so text files depend on each machine's `core.autocrlf`. Harmless now; will cause spurious whole-file diffs if a second machine or a Linux CI runner ever touches the repo | — | open — fix during 0.6 (CI) |
+| OI-16 | 0.1 | debt | low | Suspected line-ending problem from git`s LF→CRLF warnings | — | ✅ **closed 2026-08-12 — not a problem.** `git ls-files --eol` shows `i/lf` for every file, ours and upstream`s: `* text=auto` is normalising correctly and the warning is purely informational. My original concern was wrong, and fixing it by renormalising would have rewritten thousands of upstream files for nothing |
 | OI-17 | 0.2 | dependency | **high** | **Logo not designed yet.** `frontend/cmake/windows/mission-capture.ico` is a deliberately plain placeholder ("MC" on subsea blue with an amber bar to mark it provisional). Must be replaced before any external release — a placeholder icon on a client's vessel PC looks unfinished | first release | **open — waiting on you** |
 | OI-18 | 0.2 | dependency | med | Visual Studio ATL component missing, breaking `win-dshow` (and others) | 0.3 | ✅ **closed 2026-08-12** — root cause was CMake selecting the ATL-less **Build Tools** install when **Community** (which has ATL) was also present. Fixed by pinning `CMAKE_GENERATOR_INSTANCE` in the preset; no install needed. My earlier note that disabling plugins would resolve it was wrong — `win-dshow` is load-bearing and cannot be disabled |
 | OI-19 | 0.2 | bug | med | `CMakePresets.json` requires generator "Visual Studio 18 2026"; this machine has VS 2022 | 0.3 | ✅ **closed 2026-08-12** — `windows-subsea-x64` pins "Visual Studio 17 2022". Upstream presets left untouched |
@@ -96,6 +96,8 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | OI-25 | 0.4 | debt | low | `decklink-captions` and `decklink-output-ui` fail to load their `en-US` locale at startup. Both are peripheral plugins that ride along with `ENABLE_DECKLINK` and neither is used; worth disabling outright if a switch can be added | 2.1 | open |
 | OI-26 | 0.5 | bug | low | `--dump-ui-manifest` returns early from `OBSBasic::OBSInit`, so the crash handler never records a sentinel location and logs an error at shutdown. Confirmed **absent from normal runs**, so it is an artifact of the test-only flag, not a product defect. Allow-listed in `common.ps1`; not root-caused | — | open |
 | OI-27 | 0.5 | dependency | low | `ENABLE_UNIT_TESTS` is on in the preset, so every build compiles the cmocka suite. Negligible now (4 small tests) but worth a separate CI-only preset if it grows | 0.6 | open |
+| OI-28 | 0.6 | risk | **med** | **CI has never actually run.** `gh` is not installed here, so `mission-capture.yaml` is validated only by YAML parse and local preset configure. First push to GitHub is the real test; expect to iterate | — | **open — needs a run** |
+| OI-29 | 0.6 | risk | med | The T0 smoke job is `continue-on-error: true`. Hosted runners have no GPU and fall back to WARP software D3D11; whether OBS initialises there is unknown. Left non-blocking so it reports rather than reddening CI. Make it required once a few runs prove it stable | — | open |
 
 ---
 
@@ -108,7 +110,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | 0.3 | Windows-only build slimming | **`done`** | 2026-08-12 | Clean build exit 0; [BUILDING.md](BUILDING.md) | `windows-subsea-x64` preset added: 22 cache vars, 19 plugins ship (was 27). **Configure 45 s, clean build 200 s, rundir 382 MB.** Added two options upstream lacks: `ENABLE_FRONTEND_TOOLS` and `ENABLE_UPDATER` (the latter otherwise ships an updater.exe that would patch our install with OBS binaries). Pinned `CMAKE_GENERATOR_INSTANCE` to VS Community — see OI-18, my earlier assumption that disabling plugins would dodge the ATL problem was **wrong**. Also made the root CMakeLists record disabled scripting in the feature summary, which upstream silently omits. Beyond the planned list I also disabled WhatsNew, service/compat updates, NVAFX/NVVFX and CoreAudio encoder — all either phone home or need absent redistributables |
 | 0.4 | Feature-flag system | **`done`** | 2026-08-12 | Runtime verified: 30 hidden / 0 missing; override round-trip 30→28 | 16 flags in one table in `MCFeatures.cpp`; `features.ini` self-writes with per-flag comments on first run. Two seams, not one: `load()` in `OBSApp::OBSInit` + `apply()` at the end of `OBSBasic::OBSInit`. `features.ini` lives in the config root, not the profile dir — product-level, not per-Rig. **Found 4 more config-path literals my 0.2 verification missed** (grep pattern `"obs-studio` skipped every leading-slash variant); one of them broke startup entirely. `ScenesDock`/`SourcesDock` deliberately default ON until Phase 1 builds Layers |
 | 0.5 | Test harness bring-up | **`done`** | 2026-08-12 | `T0 Foundation: PASS — 19 passed, 0 failed, 1 skipped` | ctest wired up and green (4/4 cmocka). **CMocka already ships in obs-deps** — no vcpkg needed, contrary to the plan; but upstream`s `test/cmocka/CMakeLists.txt` used `${CMOCKA_LIBRARIES}`, which that package does not set, so the suite could never have linked. Fixed to `cmocka::cmocka` and its hardcoded multi-config test paths corrected. `--dump-ui-manifest` added, emitting actions/docks/menus/element types/**OBS hotkeys**/feature flags. Harness written with corrected paths (portable config root is `rundir/config`, and cwd must be the exe dir). Run reports working incl. dirty-tree flag and criteria table. Phase 0 acceptance criteria now carry `P0-ACn` IDs |
-| 0.6 | CI reduction | `todo` | | | |
+| 0.6 | CI reduction | **`done`** | 2026-08-12 | All 10 workflow YAMLs parse; CI preset configures clean | Upstream entry points (`push`, `pr-pull`, `publish`, `scheduled`) neutered to `workflow_dispatch` rather than deleted — deleting guarantees a conflict every time upstream edits them, neutering does not. The `workflow_call` workflows go inert automatically. New `mission-capture.yaml`: format → build+ctest+branding check → T0 smoke, with dep caching and artifact upload. **Preset split into base/local/CI** — the VS-instance pin is a property of this machine and would break a runner. Skipped upstream`s `swift-format` job (no Swift here, and macOS minutes bill 10x). **Unverified: never executed on GitHub** — see OI-28 |
 | 0.7 | Baseline hardware benchmark | `todo` | | | Resolves OI-5, OI-6 |
 
 ## Phase 1 — Shell and the Layers tree

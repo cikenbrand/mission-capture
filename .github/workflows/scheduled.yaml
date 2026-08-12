@@ -1,9 +1,10 @@
 name: Scheduled
 run-name: Scheduled Repository Actions ⏰
+# Mission Capture: upstream nightly cron disabled. It checks streaming-service
+# availability and pushes translation updates for the OBS Project -- daily work
+# on their behalf that we should not be running. Kept for mergeability.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: 17 0 * * *
 permissions:
   contents: write
 concurrency:
