@@ -74,8 +74,7 @@ jobs:
       # even when the job failed, so a run that dies part-way through the
       # dependency download poisons the cache, and every later run restores the
       # half-written copy. That matches what was seen here: one run spent 47s in
-      # Configure while the runs on either side of it failed in 2s. Only a
-      # successful build is worth keeping.
+      # Configure while the runs on either side of it failed in 2s.
       - name: Restore dependency cache
         id: deps-cache
         uses: actions/cache/restore@v5
@@ -84,7 +83,33 @@ jobs:
           key: deps-windows-x64-v2-${{ hashFiles('buildspec.json') }}
 
       - name: Configure
-        run: cmake --preset windows-subsea-ci-x64
+        shell: pwsh
+        run: |
+          # Configure is where the dependency bundles are downloaded, and the
+          # GitHub release CDN drops the connection mid-transfer often enough to
+          # matter -- one run died 0.17s into the x86 bundle with curl error 56.
+          # CMake deletes the partial file and verifies EXPECTED_HASH on the
+          # complete one, so a retry cannot inherit a corrupt archive.
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            cmake --preset windows-subsea-ci-x64
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Write-Host "::warning::Configure attempt $attempt failed; retrying"
+            Start-Sleep -Seconds 15
+          }
+          throw 'Configure failed after 3 attempts.'
+
+      # Saved here rather than at the end of the job. Configure completing means
+      # every archive downloaded whole and matched its SHA256, which is the only
+      # thing the cache needs to be true -- waiting for the build to pass as well
+      # meant that until the first fully green run there was nothing cached at
+      # all, so every run re-downloaded a gigabyte and got another chance to hit
+      # the flake above.
+      - name: Save dependency cache
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: .deps
+          key: deps-windows-x64-v2-${{ hashFiles('buildspec.json') }}
 
       - name: Build
         run: cmake --build --preset windows-subsea-ci-x64
@@ -103,13 +128,6 @@ jobs:
           Write-Host "CompanyName: $($vi.CompanyName)"
           if ($vi.ProductName -ne 'Mission Capture')      { throw 'ProductName is not Mission Capture' }
           if ($vi.CompanyName -ne 'Cyberian Resources')   { throw 'CompanyName is not Cyberian Resources' }
-
-      - name: Save dependency cache
-        if: success() && steps.deps-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: .deps
-          key: deps-windows-x64-v2-${{ hashFiles('buildspec.json') }}
 
       - name: Upload build
         uses: actions/upload-artifact@v5
