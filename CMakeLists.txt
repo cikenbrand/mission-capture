@@ -41,6 +41,17 @@ add_subdirectory(plugins)
 
 add_subdirectory(test/test-input)
 
+# Mission Capture: upstream never adds test/, so its cmocka suite is unreachable
+# and there is no CTest registration anywhere in the tree. Both are wired up here.
+# BUILD_TESTS stays undefined, so test/CMakeLists.txt only reaches its cmocka
+# branch and test-input is not added twice.
+option(ENABLE_UNIT_TESTS "Build the cmocka unit test suite" OFF)
+if(ENABLE_UNIT_TESTS)
+  include(CTest)
+  enable_testing()
+  add_subdirectory(test)
+endif()
+
 add_subdirectory(frontend)
 
 message_configuration()

@@ -247,18 +247,22 @@ answered with a list rather than a guess.
 
 ## Acceptance criteria
 
-- [ ] App launches as "Mission Capture"; no "OBS" string or logo in UI, installer, or window title
-- [ ] Config lives in `%APPDATA%\Cyberian Resources\Mission Capture\`
-- [ ] Clean configure+build from scratch on Windows in a documented, measured time
-- [ ] `ctest` runs the four existing cmocka tests and they pass
-- [ ] `MCFeatures::enabled()` demonstrably hides at least one real menu item
-- [ ] `--dump-ui-manifest` produces valid JSON
-- [ ] Every suite run writes a Markdown + JSON report, and `run-tests.ps1` writes a roll-up index
-- [ ] A report from a dirty working tree is flagged as such
-- [ ] An assertion tagged with a `-Criterion` ID appears in the report's criteria table
-- [ ] CI green on Windows x64 only, with the report directory uploaded as an artifact
-- [ ] `hardware-baseline.md` exists with real encode numbers and a capture-hardware inventory
-- [ ] One `git merge upstream/master` completed and documented
+Criterion IDs are the tags `-Criterion` uses in the run reports
+([testing.md § Run reports](testing.md#run-reports)). `P0-AC3` is "no unexpected errors in the
+application log", asserted by T0 rather than listed here.
+
+- [ ] `P0-AC1` App launches as "Mission Capture"; no "OBS" string or logo in UI, installer, or window title
+- [ ] `P0-AC2` Config lives in `%APPDATA%\Cyberian Resources\Mission Capture\`
+- [ ] `P0-AC6` Clean configure+build from scratch on Windows in a documented, measured time
+- [ ] `P0-AC7` `ctest` runs the four existing cmocka tests and they pass
+- [ ] `P0-AC4` `MCFeatures::enabled()` demonstrably hides at least one real menu item
+- [ ] `P0-AC5` `--dump-ui-manifest` produces valid JSON
+- [ ] `P0-AC8` Every suite run writes a Markdown + JSON report, and `run-tests.ps1` writes a roll-up index
+- [ ] `P0-AC9` A report from a dirty working tree is flagged as such
+- [ ] `P0-AC10` An assertion tagged with a `-Criterion` ID appears in the report's criteria table
+- [ ] `P0-AC11` CI green on Windows x64 only, with the report directory uploaded as an artifact
+- [ ] `P0-AC12` `hardware-baseline.md` exists with real encode numbers and a capture-hardware inventory
+- [ ] `P0-AC13` One `git merge upstream/master` completed and documented
 
 ---
 

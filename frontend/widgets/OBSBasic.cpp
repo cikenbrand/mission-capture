@@ -41,6 +41,7 @@
 #include <settings/OBSBasicSettings.hpp>
 #include <subsea/MCBranding.hpp>
 #include <subsea/MCFeatures.hpp>
+#include <subsea/MCUIManifest.hpp>
 #include <utility/QuickTransition.hpp>
 #include <utility/SceneRenameDelegate.hpp>
 #if defined(_WIN32) || defined(WHATSNEW_ENABLED)
@@ -87,6 +88,8 @@ extern std::string opt_starting_profile;
 extern std::string opt_starting_collection;
 
 extern bool safe_mode;
+/* Mission Capture: see frontend/subsea/MCUIManifest.hpp */
+extern std::string opt_dump_ui_manifest;
 extern bool opt_start_recording;
 extern bool opt_start_replaybuffer;
 extern bool opt_start_virtualcam;
@@ -1377,6 +1380,16 @@ void OBSBasic::OBSInit()
 	 * all docks exist, so every objectName the flag table names is findable.
 	 * See frontend/subsea/MCFeatures.hpp. */
 	MCFeatures::apply(this);
+
+	/* Mission Capture: --dump-ui-manifest writes the UI description and exits,
+	 * so the harness can diff it against a golden file. Must come after
+	 * MCFeatures::apply() or everything still reports as visible. */
+	if (!opt_dump_ui_manifest.empty()) {
+		const bool ok = MCUIManifest::write(this, opt_dump_ui_manifest);
+		QMetaObject::invokeMethod(
+			qApp, [ok]() { qApp->exit(ok ? 0 : 1); }, Qt::QueuedConnection);
+		return;
+	}
 
 	if (!hideWindowOnStart) {
 		activateWindow();

@@ -348,7 +348,8 @@
         "CMAKE_GENERATOR_INSTANCE": {
           "type": "PATH",
           "value": "C:/Program Files/Microsoft Visual Studio/2022/Community"
-        }
+        },
+        "ENABLE_UNIT_TESTS": true
       }
     }
   ],

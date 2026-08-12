@@ -78,6 +78,12 @@ string opt_starting_collection;
 string opt_starting_profile;
 string opt_starting_scene;
 
+/* Mission Capture: when set, the app writes a JSON description of its visible UI
+ * to this path once the main window is fully built, then exits. This is what
+ * makes decluttering assertable instead of eyeballed -- see
+ * docs/subsea/testing.md. */
+string opt_dump_ui_manifest;
+
 bool restart = false;
 bool restart_safe = false;
 static QStringList arguments;
@@ -1005,6 +1011,12 @@ int main(int argc, char *argv[])
 				opt_starting_scene = argv[i];
 			}
 
+		} else if (arg_is(argv[i], "--dump-ui-manifest", nullptr)) {
+			/* Mission Capture: see opt_dump_ui_manifest above. */
+			if (++i < argc) {
+				opt_dump_ui_manifest = argv[i];
+			}
+
 		} else if (arg_is(argv[i], "--minimize-to-tray", nullptr)) {
 			opt_minimize_tray = true;
 
@@ -1036,6 +1048,7 @@ int main(int argc, char *argv[])
 				"--scene <string>: Start with specific scene.\n\n"
 				"--studio-mode: Enable studio mode.\n"
 				"--minimize-to-tray: Minimize to system tray.\n"
+				"--dump-ui-manifest <path>: Write a JSON description of the visible UI, then exit.\n"
 #if ALLOW_PORTABLE_MODE
 				"--portable, -p: Use portable mode.\n"
 #endif

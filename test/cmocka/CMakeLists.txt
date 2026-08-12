@@ -1,30 +1,24 @@
 project(obs-cmocka)
 
-find_package(CMocka CONFIG REQUIRED)
+# Mission Capture: obs-deps ships cmocka with a modern CMake config package that
+# exports the imported target cmocka::cmocka but does NOT set the old-style
+# CMOCKA_INCLUDE_DIR / CMOCKA_LIBRARIES variables this file previously used. With
+# those variables empty the tests configured but did not link. Use the target.
+#
+# The old add_test() calls also hardcoded ${CMAKE_CURRENT_BINARY_DIR}/<name>,
+# which is wrong for multi-config generators like Visual Studio -- the binary
+# lands in a per-configuration subdirectory. COMMAND <target> lets CMake resolve
+# the real path.
+find_package(cmocka CONFIG REQUIRED)
 
-# Serializer test
-add_executable(test_serializer test_serializer.c)
-target_include_directories(test_serializer PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_serializer PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-add_test(test_serializer ${CMAKE_CURRENT_BINARY_DIR}/test_serializer)
+function(add_obs_cmocka_test target)
+  add_executable(${target} ${target}.c)
+  target_link_libraries(${target} PRIVATE OBS::libobs cmocka::cmocka)
+  set_target_properties(${target} PROPERTIES FOLDER tests)
+  add_test(NAME ${target} COMMAND ${target})
+endfunction()
 
-# darray test
-add_executable(test_darray test_darray.c)
-target_include_directories(test_darray PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_darray PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_test(test_darray ${CMAKE_CURRENT_BINARY_DIR}/test_darray)
-
-# bitstream test
-add_executable(test_bitstream test_bitstream.c)
-target_include_directories(test_bitstream PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_bitstream PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_test(test_bitstream ${CMAKE_CURRENT_BINARY_DIR}/test_bitstream)
-
-# OS path test
-add_executable(test_os_path test_os_path.c)
-target_include_directories(test_os_path PRIVATE ${CMOCKA_INCLUDE_DIR})
-target_link_libraries(test_os_path PRIVATE OBS::libobs ${CMOCKA_LIBRARIES})
-
-add_test(test_os_path ${CMAKE_CURRENT_BINARY_DIR}/test_os_path)
+add_obs_cmocka_test(test_serializer)
+add_obs_cmocka_test(test_darray)
+add_obs_cmocka_test(test_bitstream)
+add_obs_cmocka_test(test_os_path)
