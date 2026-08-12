@@ -94,7 +94,18 @@ public:
 	int rowCount(const QModelIndex &parent = {}) const override;
 	int columnCount(const QModelIndex &parent = {}) const override;
 	QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+	bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
 	Qt::ItemFlags flags(const QModelIndex &index) const override;
+
+	/* Drag and drop. Internal moves only -- there is nothing meaningful to
+	 * exchange with another application. */
+	Qt::DropActions supportedDropActions() const override;
+	QStringList mimeTypes() const override;
+	QMimeData *mimeData(const QModelIndexList &indexes) const override;
+	bool canDropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column,
+			     const QModelIndex &parent) const override;
+	bool dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int column,
+			  const QModelIndex &parent) override;
 
 	/* Convenience accessors for the view and for tests. */
 	Kind kindOf(const QModelIndex &index) const;
@@ -111,6 +122,16 @@ public:
 
 	/* Rebuilds everything. Used on Job load and as the last-resort fallback. */
 	void reload();
+
+	/* Convenience mutations the view calls; each ends up back here through a
+	 * libobs signal, so the model is never updated speculatively. */
+	void toggleVisible(const QModelIndex &index);
+	void toggleLocked(const QModelIndex &index);
+
+signals:
+	/* Emitted when a drop moved an Element to a different Canvas, so the view
+	 * can select it in its new home. */
+	void elementMoved(const QModelIndex &newIndex);
 
 private slots:
 	/* All of these already run on the Qt thread -- the libobs handlers below

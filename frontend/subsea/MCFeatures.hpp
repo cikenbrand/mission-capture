@@ -88,6 +88,10 @@ enum class Feature {
 	ScenesDock,
 	SourcesDock,
 
+	/* The Layers tree that replaces them. On by default from task 1.3; the two
+	 * docks above stay on until 1.4 retires them. */
+	LayersDock,
+
 	Count_
 };
 

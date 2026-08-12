@@ -41,6 +41,7 @@
 #include <settings/OBSBasicSettings.hpp>
 #include <subsea/MCBranding.hpp>
 #include <subsea/MCFeatures.hpp>
+#include <subsea/MCLayersTree.hpp>
 #include <subsea/MCUIManifest.hpp>
 #include <utility/QuickTransition.hpp>
 #include <utility/SceneRenameDelegate.hpp>
@@ -371,6 +372,18 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 	addDockWidget(Qt::BottomDockWidgetArea, controlsDock);
 
 	startingDockLayout = saveState();
+
+	/* Mission Capture: the Layers tree. Added alongside the Scenes and Sources
+	 * docks rather than replacing them -- task 1.4 retires those and redirects
+	 * preview selection here. Until then both are present so the tree can be
+	 * compared against the widgets it replaces.
+	 * See frontend/subsea/MCLayersTree.hpp. */
+	layersTree = new MCLayersTree(this);
+	layersDock = new OBSDock(this);
+	layersDock->setObjectName(QStringLiteral("layersDock"));
+	layersDock->setWindowTitle(QTStr("Basic.Main.Layers"));
+	layersDock->setWidget(layersTree);
+	addDockWidget(Qt::LeftDockWidgetArea, layersDock);
 
 	statsDock = new OBSDock();
 	statsDock->setObjectName(QStringLiteral("statsDock"));

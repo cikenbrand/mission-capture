@@ -141,6 +141,15 @@ if (Test-Path $layersManifest) {
         Assert-True (@($cam2.elements).Count -eq 1) 'Camera 2 has 1 Element' 'P1-AC1'
     }
 
+    # The Layers dock exists and is registered under the expected objectName,
+    # which is also what the feature flag targets.
+    $layersDock = @($lm.docks | Where-Object { $_.name -eq 'layersDock' })
+    Assert-True ($layersDock.Count -eq 1) 'Layers dock is registered' 'P1-AC1'
+    if ($layersDock.Count -eq 1) {
+        Assert-True ($layersDock[0].title -eq 'Layers') `
+                    "Layers dock is titled 'Layers' (got '$($layersDock[0].title)')" 'P1-AC1'
+    }
+
     # Exactly one Canvas is the program Canvas.
     $program = @($canvases | Where-Object { $_.program })
     Assert-True ($program.Count -eq 1 -and $program[0].name -eq 'Camera 1') `

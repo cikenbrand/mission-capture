@@ -442,6 +442,11 @@ public slots:
 	 */
 private:
 	QPointer<QDockWidget> statsDock;
+
+	/* Mission Capture: the Layers tree replacing the Scenes and Sources docks.
+	 * See frontend/subsea/MCLayersTree.hpp. */
+	QPointer<QDockWidget> layersDock;
+	QPointer<class MCLayersTree> layersTree;
 	QByteArray startingDockLayout;
 	QStringList extraDockNames;
 	QList<std::shared_ptr<QDockWidget>> extraDocks;

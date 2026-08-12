@@ -21,7 +21,11 @@
 
 #include <qt-wrappers.hpp>
 
+#include <QDataStream>
 #include <QMetaObject>
+#include <QMimeData>
+
+#include <algorithm>
 
 #include "moc_MCLayersModel.cpp"
 
@@ -309,13 +313,195 @@ QVariant MCLayersModel::data(const QModelIndex &index, int role) const
 	}
 }
 
+bool MCLayersModel::setData(const QModelIndex &index, const QVariant &value, int role)
+{
+	if (!index.isValid() || role != Qt::EditRole) {
+		return false;
+	}
+
+	const QString name = value.toString().trimmed();
+	if (name.isEmpty()) {
+		return false;
+	}
+
+	auto *node = static_cast<Node *>(index.internalPointer());
+	if (!node) {
+		return false;
+	}
+
+	obs_source_t *source = nullptr;
+	OBSSourceAutoRelease canvasSource;
+	if (node->kind == Kind::Canvas) {
+		canvasSource = obs_weak_source_get_source(static_cast<CanvasNode *>(node)->weakScene);
+		source = canvasSource;
+	} else {
+		source = obs_sceneitem_get_source(static_cast<ElementNode *>(node)->item);
+	}
+
+	if (!source || name == QString::fromUtf8(obs_source_get_name(source))) {
+		return false;
+	}
+
+	/* Names must be unique across sources: libobs looks sources up by name, and
+	 * a duplicate silently attaches to the wrong object. */
+	OBSSourceAutoRelease existing = obs_get_source_by_name(QT_TO_UTF8(name));
+	if (existing) {
+		blog(LOG_WARNING, "[MCLayers] Rename rejected: '%s' is already in use", QT_TO_UTF8(name));
+		return false;
+	}
+
+	/* The source_rename signal brings the change back to us, so do not touch
+	 * the node here -- that would double-apply it. */
+	obs_source_set_name(source, QT_TO_UTF8(name));
+	return true;
+}
+
+void MCLayersModel::toggleVisible(const QModelIndex &index)
+{
+	OBSSceneItem item = elementAt(index);
+	if (item) {
+		obs_sceneitem_set_visible(item, !obs_sceneitem_visible(item));
+	}
+}
+
+void MCLayersModel::toggleLocked(const QModelIndex &index)
+{
+	OBSSceneItem item = elementAt(index);
+	if (item) {
+		obs_sceneitem_set_locked(item, !obs_sceneitem_locked(item));
+	}
+}
+
+// MARK: - Drag and drop
+
+Qt::DropActions MCLayersModel::supportedDropActions() const
+{
+	return Qt::MoveAction | Qt::CopyAction;
+}
+
+QStringList MCLayersModel::mimeTypes() const
+{
+	return {QStringLiteral("application/x-mission-capture-element")};
+}
+
+QMimeData *MCLayersModel::mimeData(const QModelIndexList &indexes) const
+{
+	/* Carry the Canvas row and Element row rather than a pointer: by the time
+	 * the drop is handled the model may have been rebuilt underneath us, and a
+	 * stale ElementNode* would be a use-after-free. */
+	QByteArray encoded;
+	QDataStream stream(&encoded, QIODevice::WriteOnly);
+
+	int count = 0;
+	for (const QModelIndex &index : indexes) {
+		if (!index.isValid() || kindOf(index) != Kind::Element) {
+			continue;
+		}
+		const QModelIndex parentIndex = parent(index);
+		stream << parentIndex.row() << index.row();
+		count++;
+	}
+
+	if (count == 0) {
+		return nullptr;
+	}
+
+	auto *data = new QMimeData;
+	data->setData(mimeTypes().first(), encoded);
+	return data;
+}
+
+bool MCLayersModel::canDropMimeData(const QMimeData *data, Qt::DropAction, int, int,
+				    const QModelIndex &parent) const
+{
+	if (!data || !data->hasFormat(mimeTypes().first())) {
+		return false;
+	}
+	/* Elements may only land inside a Canvas, never at the top level. */
+	return parent.isValid();
+}
+
+bool MCLayersModel::dropMimeData(const QMimeData *data, Qt::DropAction action, int row, int, const QModelIndex &parent)
+{
+	if (action == Qt::IgnoreAction) {
+		return true;
+	}
+	if (!canDropMimeData(data, action, row, 0, parent)) {
+		return false;
+	}
+
+	/* The drop target may be a Canvas row or an Element within one. */
+	const QModelIndex canvasIndex = (kindOf(parent) == Kind::Canvas) ? parent : this->parent(parent);
+	obs_scene_t *targetScene = canvasAt(canvasIndex);
+	if (!targetScene) {
+		return false;
+	}
+
+	QByteArray encoded = data->data(mimeTypes().first());
+	QDataStream stream(&encoded, QIODevice::ReadOnly);
+
+	while (!stream.atEnd()) {
+		int sourceCanvasRow = -1;
+		int sourceElementRow = -1;
+		stream >> sourceCanvasRow >> sourceElementRow;
+
+		const QModelIndex fromCanvas = index(sourceCanvasRow, 0);
+		if (!fromCanvas.isValid()) {
+			continue;
+		}
+		const QModelIndex fromIndex = index(sourceElementRow, 0, fromCanvas);
+		OBSSceneItem item = elementAt(fromIndex);
+		if (!item) {
+			continue;
+		}
+
+		obs_scene_t *sourceScene = canvasAt(fromCanvas);
+
+		if (sourceScene == targetScene) {
+			/* Reorder within one Canvas. The view gives us the row to
+			 * insert *above*; libobs counts from the bottom, so the
+			 * position converts through the same reversal as everywhere
+			 * else. */
+			const int count = rowCount(canvasIndex);
+			const int targetRow = (row < 0) ? count : row;
+			const int clamped = std::clamp(targetRow, 0, count - 1);
+			obs_sceneitem_set_order_position(item, toLibobsIndex(clamped, count));
+			continue;
+		}
+
+		/* Across Canvases. Add the same underlying source to the target and
+		 * remove the original: a move, not a duplicate, so both Canvases
+		 * keep sharing one live capture rather than opening the device
+		 * twice. Copy (Ctrl-drag) skips the removal. */
+		obs_sceneitem_t *added = obs_scene_add(targetScene, obs_sceneitem_get_source(item));
+		if (!added) {
+			continue;
+		}
+
+		obs_transform_info transform;
+		obs_sceneitem_get_info2(item, &transform);
+		obs_sceneitem_set_info2(added, &transform);
+		obs_sceneitem_set_visible(added, obs_sceneitem_visible(item));
+		obs_sceneitem_set_locked(added, obs_sceneitem_locked(item));
+
+		if (action == Qt::MoveAction) {
+			obs_sceneitem_remove(item);
+		}
+	}
+
+	/* item_add / item_remove / reorder signals rebuild the affected Canvases,
+	 * so there is nothing to update here. Returning false stops Qt from also
+	 * trying to remove the dragged rows itself. */
+	return false;
+}
+
 Qt::ItemFlags MCLayersModel::flags(const QModelIndex &index) const
 {
 	if (!index.isValid()) {
 		return Qt::NoItemFlags;
 	}
 
-	Qt::ItemFlags f = Qt::ItemIsEnabled | Qt::ItemIsSelectable;
+	Qt::ItemFlags f = Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable;
 
 	auto *node = static_cast<Node *>(index.internalPointer());
 	if (node && node->kind == Kind::Element) {

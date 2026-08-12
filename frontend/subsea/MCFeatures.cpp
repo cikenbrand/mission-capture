@@ -110,6 +110,7 @@ const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{
 
 	{Feature::ScenesDock, "ScenesDock", true, "Scenes dock (Phase 1 replaces it with Layers)", {"scenesDock"}},
 	{Feature::SourcesDock, "SourcesDock", true, "Sources dock (Phase 1 replaces it with Layers)", {"sourcesDock"}},
+	{Feature::LayersDock, "LayersDock", true, "The Layers tree: Canvases and their Elements in one panel", {"layersDock"}},
 }};
 
 /* Resolved state, and whether it came from features.ini or the compiled default. */
