@@ -261,7 +261,7 @@ application log", asserted by T0 rather than listed here.
 - [ ] `P0-AC9` A report from a dirty working tree is flagged as such
 - [ ] `P0-AC10` An assertion tagged with a `-Criterion` ID appears in the report's criteria table
 - [ ] `P0-AC11` CI green on Windows x64 only, with the report directory uploaded as an artifact
-- [ ] `P0-AC12` `hardware-baseline.md` exists with real encode numbers and a capture-hardware inventory
+- [x] `P0-AC12` `hardware-baseline.md` exists with real encode numbers and a capture-hardware inventory
 - [ ] `P0-AC13` One `git merge upstream/master` completed and documented
 
 ---

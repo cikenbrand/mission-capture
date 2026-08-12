@@ -44,7 +44,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 
 | Phase | Title | Tasks | Done | Status |
 |---|---|---|---|---|
-| [0](phase-0-foundation.md) | Foundation | 7 | **6** | `wip` |
+| [0](phase-0-foundation.md) | Foundation | 7 | **7** | **`done`** |
 | [1](phase-1-shell-and-layers.md) | Shell & Layers tree | 9 | 0 | `todo` |
 | [2](phase-2-video-elements.md) | Video elements | 6 | 0 | `todo` |
 | [3](phase-3-data-core.md) | Data core | 7 | 0 | `todo` |
@@ -54,7 +54,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 | [7](phase-7-secondary-capture.md) | Secondary capture | 11 | 0 | `todo` |
 | [8](phase-8-sidecar-log.md) | Sidecar log & hardening | 8 | 0 | `todo` |
 | [9](phase-9-webrtc-streaming.md) | WebRTC streaming | 6 | 0 | `todo` |
-| | **Total** | **76** | **6** | |
+| | **Total** | **76** | **7** | |
 
 **Acceptance criteria met:** 5 / 113 — P0-AC1..AC5, evidence in the T0 run report.
 
@@ -73,8 +73,8 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | OI-2 | planning | question | high | Client deliverable format — required CSV columns, header naming, timestamp format, filename convention, any IMCA/in-house spec | 8.2 | open — ask at Phase 8 |
 | OI-3 | planning | question | high | Event marking scope — vocabulary fixed or free-text, own row/column/file, should the hotkey also fire a clip, append-only or editable | 8.6, 8.2 | open — ask at Phase 8 |
 | OI-4 | planning | question | med | Real channel count and data rate, and the RS-232 line settings actually in use | 3.1, 5.1 | open — ask at Phase 3, again at Phase 5 |
-| OI-5 | planning | dependency | high | Encoder-session limits on the real AMD and NVIDIA target machines are unmeasured. The Phase 6 resource guard is designed around a number we don't have | 6.6 | open — resolved by 0.7 |
-| OI-6 | planning | dependency | med | Capture-hardware inventory — which DeckLink and AVerMedia models, plus "there may be other capture cards as well" | 2.1, 2.2 | open — resolved by 0.7 |
+| OI-5 | planning | dependency | high | Encoder limits on the **real target machine** are still unmeasured. 0.7 measured the dev laptop instead: no session cap up to 12, throughput-bound at 8 (NVENC 1080p30) / 3 (NVENC 1080p60) / 12+ (AMF 1080p30). Useful, but a laptop | 6.6 | **open — re-run `bench-encoders.ps1` on the topside PC** |
+| OI-6 | planning | dependency | med | Capture-hardware inventory — which DeckLink and AVerMedia models, plus "there may be other capture cards as well" | 2.1, 2.2 | **open — no capture hardware connected during 0.7.** Note DeckLink needs Blackmagic Desktop Video installed; UVC/DirectShow devices do not |
 | OI-7 | planning | risk | med | Audio-encoder fan-out across simultaneously-started outputs is inferred from `obs_encoder_add_output`'s DARRAY, not yet proven. Fallback is one audio encoder per recorder | 6.2 | open — verify early in 6.2 |
 | OI-8 | planning | risk | med | An `EPHEMERAL \| ACTIVATE` private render target keeping its sources active while not the program Canvas is the premise of the whole recording feature, and is unverified | 6.2 | open — verify early in 6.2 |
 | OI-9 | planning | debt | low | Phase docs' 113 acceptance criteria have no `-Criterion` IDs stamped yet; done per phase as its tests are written | — | open — rolling |
@@ -98,6 +98,8 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | OI-27 | 0.5 | dependency | low | `ENABLE_UNIT_TESTS` is on in the preset, so every build compiles the cmocka suite. Negligible now (4 small tests) but worth a separate CI-only preset if it grows | 0.6 | open |
 | OI-28 | 0.6 | risk | **med** | **CI has never actually run.** `gh` is not installed here, so `mission-capture.yaml` is validated only by YAML parse and local preset configure. First push to GitHub is the real test; expect to iterate | — | **open — needs a run** |
 | OI-29 | 0.6 | risk | med | The T0 smoke job is `continue-on-error: true`. Hosted runners have no GPU and fall back to WARP software D3D11; whether OBS initialises there is unknown. Left non-blocking so it reports rather than reddening CI. Make it required once a few runs prove it stable | — | open |
+| OI-30 | 0.7 | bug | low | GPU utilisation reads 0 throughout the AMF runs — the `GPU Engine(*engtype_VideoEncode)` counter evidently exposes the AMD encode engine under a different instance name. The figure is missing, not zero. Fix before the real-machine run | 0.7 rerun | open |
+| OI-31 | 0.7 | risk | med | The benchmark measures **encode only** — no capture, compositing, overlay rendering or muxing running alongside, and 10-second runs so no thermal throttling. Real recording will have materially less headroom than these figures suggest | 6.6, 8.8 | open |
 
 ---
 
@@ -111,7 +113,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | 0.4 | Feature-flag system | **`done`** | 2026-08-12 | Runtime verified: 30 hidden / 0 missing; override round-trip 30→28 | 16 flags in one table in `MCFeatures.cpp`; `features.ini` self-writes with per-flag comments on first run. Two seams, not one: `load()` in `OBSApp::OBSInit` + `apply()` at the end of `OBSBasic::OBSInit`. `features.ini` lives in the config root, not the profile dir — product-level, not per-Rig. **Found 4 more config-path literals my 0.2 verification missed** (grep pattern `"obs-studio` skipped every leading-slash variant); one of them broke startup entirely. `ScenesDock`/`SourcesDock` deliberately default ON until Phase 1 builds Layers |
 | 0.5 | Test harness bring-up | **`done`** | 2026-08-12 | `T0 Foundation: PASS — 19 passed, 0 failed, 1 skipped` | ctest wired up and green (4/4 cmocka). **CMocka already ships in obs-deps** — no vcpkg needed, contrary to the plan; but upstream`s `test/cmocka/CMakeLists.txt` used `${CMOCKA_LIBRARIES}`, which that package does not set, so the suite could never have linked. Fixed to `cmocka::cmocka` and its hardcoded multi-config test paths corrected. `--dump-ui-manifest` added, emitting actions/docks/menus/element types/**OBS hotkeys**/feature flags. Harness written with corrected paths (portable config root is `rundir/config`, and cwd must be the exe dir). Run reports working incl. dirty-tree flag and criteria table. Phase 0 acceptance criteria now carry `P0-ACn` IDs |
 | 0.6 | CI reduction | **`done`** | 2026-08-12 | All 10 workflow YAMLs parse; CI preset configures clean | Upstream entry points (`push`, `pr-pull`, `publish`, `scheduled`) neutered to `workflow_dispatch` rather than deleted — deleting guarantees a conflict every time upstream edits them, neutering does not. The `workflow_call` workflows go inert automatically. New `mission-capture.yaml`: format → build+ctest+branding check → T0 smoke, with dep caching and artifact upload. **Preset split into base/local/CI** — the VS-instance pin is a property of this machine and would break a runner. Skipped upstream`s `swift-format` job (no Swift here, and macOS minutes bill 10x). **Unverified: never executed on GitHub** — see OI-28 |
-| 0.7 | Baseline hardware benchmark | `todo` | | | Resolves OI-5, OI-6 |
+| 0.7 | Baseline hardware benchmark | **`done`** | 2026-08-12 | [hardware-baseline.md](hardware-baseline.md) | **Headline: no session-creation failures at all**, either family, up to 12 concurrent 1080p60 — the NVENC cap the plan was built around did not materialise. The binding constraint is **throughput**, so 6.6 should be a dropped-frame watchdog first and a session counter second. Both target families measured on one machine; AMF (iGPU) beat NVENC by 40–70%, almost certainly a laptop power-budget artifact. D: sustains ~1.6 GB/s. **Results are provisional — not the target machine — so OI-5 stays open.** OI-6 untouched (no capture hardware connected) |
 
 ## Phase 1 — Shell and the Layers tree
 
