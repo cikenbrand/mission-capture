@@ -1394,6 +1394,11 @@ void OBSBasic::OBSInit()
 	 * See frontend/subsea/MCFeatures.hpp. */
 	MCFeatures::apply(this);
 
+	/* And after CreateHotkeys() above, so a hidden feature loses its keyboard
+	 * route as well as its button. A hidden Start Streaming that still answers
+	 * its hotkey is a field bug: see docs/subsea/ui-audit.md. */
+	MCFeatures::unregisterHiddenHotkeys();
+
 	/* Mission Capture: --dump-ui-manifest writes the UI description and exits,
 	 * so the harness can diff it against a golden file. Must come after
 	 * MCFeatures::apply() or everything still reports as visible. */

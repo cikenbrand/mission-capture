@@ -35,6 +35,8 @@
 #ifdef YOUTUBE_ENABLED
 #include <utility/YoutubeApiWrappers.hpp>
 #endif
+#include <subsea/MCFeatures.hpp>
+
 #include <widgets/OBSBasic.hpp>
 #include <widgets/OBSProjector.hpp>
 
@@ -348,6 +350,12 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
 	ui->setupUi(this);
+
+	/* Mission Capture: this dialog is built on demand and is not a child of the
+	 * main window, so the seam in OBSBasic::OBSInit cannot reach it. Without
+	 * this call, pages such as Stream stay fully usable however their flag is
+	 * set. See frontend/subsea/MCFeatures.hpp. */
+	MCFeatures::apply(this);
 
 	main->EnableOutputs(false);
 

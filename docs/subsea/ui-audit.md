@@ -1,7 +1,9 @@
 # UI surface audit
 
 **Task:** [1.5](phase-1-shell-and-layers.md#15--ui-surface-audit-and-hiding).
-**Status:** proposal — **awaiting review**. Nothing here is implemented yet.
+**Status:** **reviewed and accepted 2026-08-13.** No corrections were raised against the
+dispositions below; the one open call — Profile and Scene Collection — was decided in favour of
+keeping both visible until 1.8. Implementation follows the plan at the foot of this document.
 
 Every menu action, dock, toolbar button, status-bar field and settings page in the application,
 classified **Keep / Hide / Rework**. The phase doc says these dispositions are "to be confirmed with
@@ -147,9 +149,12 @@ Both menus are **Rework → 1.8**, and this is the biggest structural call in th
 concepts an operator must keep in step by hand. For us they are one thing — a **Job** — and 1.8
 builds the New Job wizard on that premise.
 
-Proposal: **hide both menus in 1.5**, and let 1.8 introduce a single Job menu. The risk of hiding
-first is a gap where neither exists; the alternative is shipping the confusion we are trying to
-remove. Flagged for your call.
+Proposal was to hide both in 1.5 and let 1.8 introduce a single Job menu.
+
+**Decided 2026-08-13: keep both visible until 1.8 exists.** Hiding first would leave a stretch of
+the build with no way to create or switch a Job at all, and the gap is worse than the duplication.
+1.8 owns the replacement and the retirement together. No `ProfileMenu` or `SceneCollectionMenu` flag
+is added by 1.5 — 1.8 will take the whole menu rather than inherit a half-used switch.
 
 Import/export of both is already hidden (`SceneCollectionImportExport`), as is
 `actionRemigrateSceneCollection` — a migration path for OBS 27-era collections that cannot exist
@@ -274,8 +279,6 @@ Extending `MCFeatures::Feature`, all default off unless noted:
 | `PluginManager` | `actionOpenPluginManager` |
 | `WhatsNew` | `actionShowWhatsNew` |
 | `MacPermissions` | `actionShowMacPermissions` |
-| `ProfileMenu` | Profile menu — pending your call above |
-| `SceneCollectionMenu` | Scene Collection menu — pending your call above |
 | `StreamSettingsPage` | Stream settings page |
 | `StreamStatusBar` | `streamFrame`, `delayFrame` |
 | `DockToggles` | *Mechanism, not a surface:* suppress `toggleViewAction` for hidden docks |
@@ -297,11 +300,12 @@ Items 3 and 7 are the ones with consequences beyond tidiness. The rest is surfac
 
 ---
 
-## Needs your decision
+## Review outcome — 2026-08-13
 
-1. **Profile and Scene Collection menus** — hide in 1.5 and let 1.8 introduce the Job menu, or leave
-   them visible until 1.8 is actually built? Hiding first is cleaner but leaves a gap.
-2. **Anything above marked Keep that you know your operators never touch** — every Keep is a guess
-   made from the outside.
-3. **Anything Hidden that you actually need.** Cheapest possible correction: say so, and it is one
-   row in a table.
+1. **Profile and Scene Collection menus** — decided: keep both visible until 1.8. See that section.
+2. **Corrections to any Keep or Hide** — none raised.
+
+Every Keep below is still a judgement made from outside the industry, and the cost of correcting one
+stays what it always was: a single row in a table and a rebuild. Worth revisiting once the build has
+been in front of an operator, particularly the Edit-menu transform actions and the Accessibility
+page, which were kept on reasoning rather than evidence.

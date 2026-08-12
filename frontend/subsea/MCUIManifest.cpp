@@ -20,6 +20,7 @@
 #include "MCLayersModel.hpp"
 
 #include <OBSApp.hpp>
+#include <settings/OBSBasicSettings.hpp>
 #include <widgets/OBSBasic.hpp>
 
 #include <obs.h>
@@ -30,7 +31,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QListWidget>
 #include <QMenu>
+#include <QStackedWidget>
 
 namespace MCUIManifest {
 
@@ -182,6 +185,40 @@ bool write(OBSBasic *main, const std::string &path)
 		}
 
 		root["layers"] = canvases;
+	}
+
+	/* --- Settings dialog ------------------------------------------------ */
+	/* Built here for the same reason the Layers model is above: the settings
+	 * dialog is not a child of the main window, so nothing else in this dump
+	 * can see it -- and that invisibility is exactly why task 1.5 found the
+	 * Stream page still fully reachable with StreamingUI off. Recording which
+	 * navigation rows survive is what lets a test hold that fix in place.
+	 *
+	 * Safe in a dump-and-exit run: the dialog is constructed, read and
+	 * destroyed without ever being shown. */
+	{
+		OBSBasicSettings settings(main);
+
+		QJsonArray pages;
+		auto *nav = settings.findChild<QListWidget *>("listWidget");
+		auto *stack = settings.findChild<QStackedWidget *>("settingsPages");
+
+		if (nav && stack) {
+			for (int row = 0; row < nav->count(); row++) {
+				QJsonObject entry;
+				entry["row"] = row;
+				entry["text"] = nav->item(row)->text();
+				entry["visible"] = !nav->item(row)->isHidden();
+
+				if (QWidget *page = stack->widget(row)) {
+					entry["page"] = page->objectName();
+				}
+
+				pages.append(entry);
+			}
+		}
+
+		root["settingsPages"] = pages;
 	}
 
 	/* --- OBS hotkeys ---------------------------------------------------- */

@@ -20,6 +20,7 @@
 #include <cstddef>
 
 class QWidget;
+class QDialog;
 class OBSBasic;
 
 /*
@@ -48,12 +49,20 @@ class OBSBasic;
  * see what exists and flip a value without a rebuild. Every flag's state and
  * where it came from is written to the application log at startup.
  *
- * LIMITATION -- READ THIS
- * -----------------------
- * Hiding a QAction does NOT unregister its hotkey. A hidden feature can still
- * be triggered by its keyboard shortcut. Unregistering hotkeys for hidden
- * features is Phase 1 task 1.5; until that lands, treat these flags as
- * "removed from view", not "removed".
+ * WHAT "HIDDEN" MEANS
+ * -------------------
+ * As of task 1.5, hiding a feature also takes away the other three routes back
+ * to it that the UI audit found (docs/subsea/ui-audit.md):
+ *
+ *   1. its libobs hotkeys are unregistered, so the key no longer fires -- this
+ *      is why a hidden Start Streaming cannot be triggered from the keyboard
+ *   2. a hidden dock's View > Docks toggle is hidden too, so it cannot be
+ *      switched back on
+ *   3. settings pages are reachable via the apply() overload below, because the
+ *      settings dialog is not a child of the main window
+ *
+ * A menu left with no visible actions is hidden as well, so nothing opens onto
+ * an empty list.
  */
 
 namespace MCFeatures {
@@ -83,14 +92,22 @@ enum class Feature {
 	/* Developer surfaces */
 	IdianPlayground,
 
-	/* Phase 1 replaces these two docks with the Layers tree. Kept ON here so
-	 * 0.4 does not silently break the app before that work exists. */
+	/* Retired by task 1.4; the Layers tree took over. */
 	ScenesDock,
 	SourcesDock,
 
-	/* The Layers tree that replaces them. On by default from task 1.3; the two
-	 * docks above stay on until 1.4 retires them. */
+	/* The Layers tree that replaces them. */
 	LayersDock,
+
+	/* Added by task 1.5 from the UI audit. What's New and the macOS permissions
+	 * dialog are absent from the audit's flag list on purpose: upstream already
+	 * deletes both outright in this build configuration, so a flag for either
+	 * would do nothing but warn forever that it could not find them. */
+	SceneViewModes,
+	BrowserInteraction,
+	PluginManager,
+	StreamSettingsPage,
+	StreamStatusBar,
 
 	Count_
 };
@@ -123,5 +140,24 @@ void load();
  * startup log can notice drift.
  */
 size_t apply(OBSBasic *main);
+
+/*
+ * The settings dialog is built on demand and is not a child of the main window,
+ * so apply(OBSBasic *) cannot see it. Call this from its constructor, after
+ * setupUi(). Without it, pages such as Stream stay fully reachable no matter
+ * what their flag says.
+ */
+size_t apply(QDialog *settings);
+
+/*
+ * Unregisters the libobs hotkeys belonging to disabled features.
+ *
+ * Separate from apply() because it must run after OBSBasic has registered its
+ * hotkeys, which happens later in startup than the UI hiding. Matching is by
+ * hotkey name, so this needs nothing from OBSBasic's private members.
+ *
+ * Returns the number of hotkeys unregistered.
+ */
+size_t unregisterHiddenHotkeys();
 
 } // namespace MCFeatures

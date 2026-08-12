@@ -24,16 +24,35 @@
 #include <util/config-file.h>
 #include <util/platform.h>
 
+#include <obs.h>
+#include <qt-wrappers.hpp>
+
 #include <QAction>
+#include <QDialog>
+#include <QDockWidget>
+#include <QListWidget>
+#include <QMenu>
+#include <QStackedWidget>
 #include <QWidget>
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <initializer_list>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace MCFeatures {
 
 namespace {
+
+/*
+ * Which window owns a feature's objects. The two apply() overloads each run the
+ * whole table but only search their own tree, so without this a settings-only
+ * row warns "not found" on every startup of the main window, and vice versa.
+ */
+enum class Scope { MainWindow, Settings };
 
 struct FeatureDef {
 	Feature feature;
@@ -43,15 +62,16 @@ struct FeatureDef {
 	/* Qt objectNames to hide when the feature is off. Verified against
 	 * frontend/forms/*.ui and the widgets created in OBSBasic.cpp. */
 	std::initializer_list<const char *> objectNames;
+	/* Defaults to the main window, which is where nearly everything lives. */
+	Scope scope = Scope::MainWindow;
 };
 
 /*
  * The single table. Adding a flag means adding a row here and an enum value.
  *
- * Defaults reflect Mission Capture's product decisions, not OBS's. The two dock
- * flags default ON because Phase 1 has not yet built the Layers tree that
- * replaces them -- turning them off now would leave the app with no way to
- * select a Canvas.
+ * Defaults reflect Mission Capture's product decisions, not OBS's. Dispositions
+ * and the reasoning behind each are in docs/subsea/ui-audit.md; this table is
+ * the audit made executable, so the two should be changed together.
  */
 const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{{
 	{Feature::StudioMode, "StudioMode", false, "Preview/Program studio mode switching", {"modeSwitch"}},
@@ -126,6 +146,38 @@ const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{
 	 true,
 	 "The Layers tree: Canvases and their Elements in one panel",
 	 {"layersDock"}},
+
+	/* Task 1.5, from the UI audit. */
+	{Feature::SceneViewModes,
+	 "SceneViewModes",
+	 false,
+	 "List/grid mode for the retired Scenes dock",
+	 {"actionSceneListMode", "actionSceneGridMode"}},
+	{Feature::BrowserInteraction,
+	 "BrowserInteraction",
+	 false,
+	 "Interact with browser sources (obs-browser is not built in this fork)",
+	 {"actionInteract"}},
+	{Feature::PluginManager,
+	 "PluginManager",
+	 false,
+	 "Plugin manager; this build ships a fixed plugin set",
+	 {"actionOpenPluginManager"}},
+	/* Only the page itself. Its inner pages (servicePage, loginPage,
+	 * streamKeyPage) live in a nested QStackedWidget that swaps between them, so
+	 * hiding them individually would fight that logic for no gain -- taking away
+	 * the navigation row makes the whole branch unreachable. */
+	{Feature::StreamSettingsPage,
+	 "StreamSettingsPage",
+	 false,
+	 "Stream settings page: services, OAuth and stream keys (Phase 9 replaces it)",
+	 {"streamPage"},
+	 Scope::Settings},
+	{Feature::StreamStatusBar,
+	 "StreamStatusBar",
+	 false,
+	 "Streaming fields in the status bar: uptime, and the stream delay buffer",
+	 {"streamFrame", "delayFrame"}},
 }};
 
 /* Resolved state, and whether it came from features.ini or the compiled default. */
@@ -156,7 +208,8 @@ void writeTemplate(const char *path)
 	fprintf(file, "; Set a value to false to hide a feature, true to show it.\n");
 	fprintf(file, "; Restart the application after editing. Values below are the defaults.\n");
 	fprintf(file, ";\n");
-	fprintf(file, "; NOTE: hiding a feature does not currently disable its keyboard shortcut.\n");
+	fprintf(file, "; Hiding a feature also unregisters its keyboard shortcut and removes it\n");
+	fprintf(file, "; from the Docks menu, so there is no way back to it while it is off.\n");
 	fprintf(file, "\n[Features]\n");
 
 	for (const FeatureDef &entry : featureTable) {
@@ -233,6 +286,201 @@ void load()
 	}
 }
 
+namespace {
+
+/*
+ * Hides every objectName belonging to a disabled feature of this scope.
+ *
+ * Rows outside `scope` are skipped rather than searched and missed, so a
+ * "not found" warning always means genuine drift from upstream -- which is the
+ * only thing it is useful for.
+ */
+struct HideResult {
+	size_t hidden = 0;
+	size_t missing = 0;
+};
+
+HideResult hideDisabledObjects(QObject *root, Scope scope)
+{
+	HideResult result;
+
+	for (size_t i = 0; i < featureTable.size(); i++) {
+		if (states[i].enabled || featureTable[i].scope != scope) {
+			continue;
+		}
+
+		for (const char *objectName : featureTable[i].objectNames) {
+			/* QAction is not a QWidget, so both lookups are needed. */
+			if (QAction *action = root->findChild<QAction *>(objectName)) {
+				action->setVisible(false);
+				result.hidden++;
+				continue;
+			}
+
+			if (QWidget *widget = root->findChild<QWidget *>(objectName)) {
+				widget->setVisible(false);
+				result.hidden++;
+				continue;
+			}
+
+			/* Upstream renamed or removed it. Not fatal -- the feature simply
+			 * stays visible -- but it means this table has drifted and should
+			 * be checked at the next merge. */
+			blog(LOG_WARNING, "[MCFeatures] '%s' (feature %s) not found; feature may still be visible",
+			     objectName, featureTable[i].key);
+			result.missing++;
+		}
+	}
+
+	return result;
+}
+
+/*
+ * A hidden dock keeps a live entry in View > Docks that puts it straight back.
+ * Qt creates that action itself, so it has no objectName and the table above
+ * cannot name it -- it has to be reached through the dock.
+ *
+ * setVisible, not setEnabled: setupDockAction() installs an enabledChanged
+ * handler that forces the action back to enabled, so disabling does not stick
+ * (frontend/widgets/OBSBasic_Docks.cpp).
+ *
+ * The action is also given a name on the way past, so the UI manifest can see
+ * it and a test can assert this stayed fixed. Its absence from the manifest is
+ * why task 0.4 reported "0 missing" and still left this open.
+ */
+size_t hideDockToggles(OBSBasic *main)
+{
+	size_t hidden = 0;
+
+	for (QDockWidget *dock : main->findChildren<QDockWidget *>()) {
+		QAction *toggle = dock->toggleViewAction();
+		if (!toggle) {
+			continue;
+		}
+
+		if (toggle->objectName().isEmpty() && !dock->objectName().isEmpty()) {
+			toggle->setObjectName(dock->objectName() + QStringLiteral("Toggle"));
+		}
+
+		if (!dock->objectName().isEmpty() && !dock->isVisible() && toggle->isVisible()) {
+			/* Only for docks a flag turned off. A dock the operator closed
+			 * themselves must keep its way back. */
+			const bool flagged =
+				std::any_of(featureTable.begin(), featureTable.end(), [&](const FeatureDef &entry) {
+					if (states[static_cast<size_t>(entry.feature)].enabled) {
+						return false;
+					}
+					return std::any_of(entry.objectNames.begin(), entry.objectNames.end(),
+							   [&](const char *name) {
+								   return dock->objectName() == QLatin1String(name);
+							   });
+				});
+			if (flagged) {
+				toggle->setVisible(false);
+				hidden++;
+			}
+		}
+	}
+
+	return hidden;
+}
+
+/*
+ * A menu emptied of every item still opens onto nothing. Run last, once all
+ * other hiding is done, and only for menus that had actions to begin with --
+ * menus populated later at runtime (the per-Canvas projector lists) start empty
+ * and would otherwise be hidden before they fill.
+ */
+size_t hideEmptyMenus(OBSBasic *main)
+{
+	size_t hidden = 0;
+
+	for (QMenu *menu : main->findChildren<QMenu *>()) {
+		QAction *menuAction = menu->menuAction();
+
+		/* Bound once. QMenu::actions() returns the list by value, so calling
+		 * it twice for begin() and end() yields iterators into two different
+		 * temporaries -- a range that never terminates. */
+		const QList<QAction *> actions = menu->actions();
+
+		if (!menuAction || !menuAction->isVisible() || actions.isEmpty()) {
+			continue;
+		}
+
+		const bool anyVisible = std::any_of(actions.begin(), actions.end(), [](const QAction *action) {
+			return action->isVisible() && !action->isSeparator();
+		});
+		if (!anyVisible) {
+			menuAction->setVisible(false);
+			hidden++;
+			blog(LOG_INFO, "[MCFeatures] Menu '%s' has no visible items; hiding it",
+			     QT_TO_UTF8(menu->objectName()));
+		}
+	}
+
+	return hidden;
+}
+
+/*
+ * Takes away the navigation row for any settings page a flag disabled.
+ *
+ * Hiding the page widget itself does nothing useful: QStackedWidget already
+ * keeps every page but the current one hidden and shows whichever the sidebar
+ * selects, so the row is the only real gate. The row index and the page index
+ * are the same by construction -- the .ui lists them in the same order, and
+ * OBSBasicSettings connects currentRow to setCurrentIndex -- so the page's own
+ * index is looked up rather than a row number being hardcoded here.
+ */
+size_t hideSettingsNavRows(QDialog *settings)
+{
+	auto *pages = settings->findChild<QStackedWidget *>("settingsPages");
+	auto *nav = settings->findChild<QListWidget *>("listWidget");
+	if (!pages || !nav) {
+		blog(LOG_WARNING, "[MCFeatures] Settings dialog has no settingsPages/listWidget; pages stay reachable");
+		return 0;
+	}
+
+	size_t hidden = 0;
+
+	for (size_t i = 0; i < featureTable.size(); i++) {
+		if (states[i].enabled || featureTable[i].scope != Scope::Settings) {
+			continue;
+		}
+
+		for (const char *objectName : featureTable[i].objectNames) {
+			QWidget *page = pages->findChild<QWidget *>(objectName);
+			if (!page) {
+				continue;
+			}
+
+			const int index = pages->indexOf(page);
+			if (index < 0 || index >= nav->count()) {
+				continue;
+			}
+
+			nav->item(index)->setHidden(true);
+			hidden++;
+		}
+	}
+
+	/* If the sidebar opened on a page we just took away, move off it. */
+	if (hidden > 0) {
+		QListWidgetItem *current = nav->currentItem();
+		if (!current || current->isHidden()) {
+			for (int row = 0; row < nav->count(); row++) {
+				if (!nav->item(row)->isHidden()) {
+					nav->setCurrentRow(row);
+					break;
+				}
+			}
+		}
+	}
+
+	return hidden;
+}
+
+} // namespace
+
 size_t apply(OBSBasic *main)
 {
 	if (!main) {
@@ -244,40 +492,136 @@ size_t apply(OBSBasic *main)
 		load();
 	}
 
-	size_t missing = 0;
-	size_t hidden = 0;
+	const HideResult result = hideDisabledObjects(main, Scope::MainWindow);
+	const size_t toggles = hideDockToggles(main);
+	const size_t menus = hideEmptyMenus(main);
 
-	for (size_t i = 0; i < featureTable.size(); i++) {
-		if (states[i].enabled) {
+	blog(LOG_INFO,
+	     "[MCFeatures] Applied feature flags: %zu object(s) hidden, %zu dock toggle(s), %zu empty menu(s), %zu not found",
+	     result.hidden, toggles, menus, result.missing);
+
+	return result.missing;
+}
+
+size_t apply(QDialog *settings)
+{
+	if (!settings) {
+		return 0;
+	}
+
+	if (!loaded) {
+		blog(LOG_WARNING, "[MCFeatures] apply() called before load(); loading now");
+		load();
+	}
+
+	const HideResult result = hideDisabledObjects(settings, Scope::Settings);
+	const size_t pages = hideSettingsNavRows(settings);
+
+	blog(LOG_INFO,
+	     "[MCFeatures] Applied feature flags to settings: %zu object(s) hidden, %zu page(s) unreachable, %zu not found",
+	     result.hidden, pages, result.missing);
+
+	return result.missing;
+}
+
+size_t unregisterHiddenHotkeys()
+{
+	if (!loaded) {
+		load();
+	}
+
+	/*
+	 * Hotkey names owned by each feature. Deliberately not part of the table
+	 * above: those are Qt objectNames looked up in a widget tree, these are
+	 * libobs registrations looked up by name in a global registry, and
+	 * conflating the two would make both harder to read.
+	 *
+	 * Matching by name is what keeps this out of OBSBasic's private members
+	 * (streamingHotkeys, replayBufHotkeys and friends), so no upstream file
+	 * has to change.
+	 */
+	struct HotkeyGroup {
+		Feature feature;
+		std::initializer_list<const char *> names;
+		/* Quick transitions are registered one per configured transition with
+		 * a numeric suffix ("OBSBasic.QuickTransition.1"), so they can only be
+		 * matched on the stem. See OBSBasic_Transitions.cpp. */
+		std::initializer_list<const char *> prefixes;
+	};
+
+	static const std::array<HotkeyGroup, 3> groups{{
+		{Feature::StreamingUI,
+		 {"OBSBasic.StartStreaming", "OBSBasic.StopStreaming", "OBSBasic.ForceStopStreaming"},
+		 {}},
+		{Feature::ReplayBuffer, {"OBSBasic.StartReplayBuffer", "OBSBasic.StopReplayBuffer"}, {}},
+		{Feature::Transitions, {"OBSBasic.Transition"}, {"OBSBasic.QuickTransition."}},
+	}};
+
+	std::vector<std::string> wanted;
+	std::vector<std::string> wantedPrefixes;
+	for (const HotkeyGroup &group : groups) {
+		if (enabled(group.feature)) {
 			continue;
 		}
-
-		for (const char *objectName : featureTable[i].objectNames) {
-			/* QAction is not a QWidget, so both lookups are needed. */
-			if (QAction *action = main->findChild<QAction *>(objectName)) {
-				action->setVisible(false);
-				hidden++;
-				continue;
-			}
-
-			if (QWidget *widget = main->findChild<QWidget *>(objectName)) {
-				widget->setVisible(false);
-				hidden++;
-				continue;
-			}
-
-			/* Upstream renamed or removed it. Not fatal -- the feature simply
-			 * stays visible -- but it means this table has drifted and should
-			 * be checked at the next merge. */
-			blog(LOG_WARNING, "[MCFeatures] '%s' (feature %s) not found; feature may still be visible",
-			     objectName, featureTable[i].key);
-			missing++;
+		for (const char *name : group.names) {
+			wanted.emplace_back(name);
+		}
+		for (const char *prefix : group.prefixes) {
+			wantedPrefixes.emplace_back(prefix);
 		}
 	}
 
-	blog(LOG_INFO, "[MCFeatures] Applied feature flags: %zu object(s) hidden, %zu not found", hidden, missing);
+	if (wanted.empty() && wantedPrefixes.empty()) {
+		return 0;
+	}
 
-	return missing;
+	/*
+	 * Collect first, unregister after: obs_enum_hotkeys holds the hotkey mutex
+	 * for the whole iteration, so unregistering from inside the callback would
+	 * deadlock.
+	 */
+	struct Collect {
+		const std::vector<std::string> *wanted;
+		const std::vector<std::string> *prefixes;
+		std::vector<obs_hotkey_id> found;
+	} collect{&wanted, &wantedPrefixes, {}};
+
+	obs_enum_hotkeys(
+		[](void *param, obs_hotkey_id id, obs_hotkey_t *hotkey) {
+			auto *ctx = static_cast<Collect *>(param);
+			const char *name = obs_hotkey_get_name(hotkey);
+			if (!name) {
+				return true;
+			}
+
+			const std::string_view key{name};
+			const bool exact = std::find(ctx->wanted->begin(), ctx->wanted->end(), key) !=
+					   ctx->wanted->end();
+			/* rfind(p, 0) rather than starts_with: this target is C++17. */
+			const bool prefixed = !exact &&
+					      std::any_of(ctx->prefixes->begin(), ctx->prefixes->end(),
+							  [&](const std::string &p) { return key.rfind(p, 0) == 0; });
+
+			if (exact || prefixed) {
+				ctx->found.push_back(id);
+			}
+			return true;
+		},
+		&collect);
+
+	/*
+	 * Unregistering one half of a registered pair is safe: obs_hotkey_pair_load
+	 * and obs_hotkey_pair_save both null-check each half before touching it
+	 * (libobs/obs-hotkey.c), so the leftover pair record is inert. That is what
+	 * lets this work by name instead of by pair id.
+	 */
+	for (const obs_hotkey_id id : collect.found) {
+		obs_hotkey_unregister(id);
+	}
+
+	blog(LOG_INFO, "[MCFeatures] Unregistered %zu hotkey(s) belonging to hidden features", collect.found.size());
+
+	return collect.found.size();
 }
 
 } // namespace MCFeatures
