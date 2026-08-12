@@ -347,7 +347,7 @@ void MCLayersTree::removeSelected()
 	 * The actions operate on the current Canvas and its selected items, which
 	 * onSelectionChanged() has already written into libobs. */
 	const char *actionName = (model_->kindOf(index) == MCLayersModel::Kind::Canvas) ? "actionRemoveScene"
-										       : "actionRemoveSource";
+											: "actionRemoveSource";
 
 	if (QAction *action = main->findChild<QAction *>(QString::fromUtf8(actionName))) {
 		action->trigger();

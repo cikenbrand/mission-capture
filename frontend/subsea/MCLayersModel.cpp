@@ -103,16 +103,15 @@ void MCLayersModel::reload()
 				order.push_back(sceneList->item(i)->text().toStdString());
 			}
 
-			std::stable_sort(scenes.begin(), scenes.end(),
-					 [&order](const OBSSource &a, const OBSSource &b) {
-						 const auto rank = [&order](const OBSSource &s) {
-							 const char *name = obs_source_get_name(s);
-							 const auto it = std::find(order.begin(), order.end(),
-										   name ? name : "");
-							 return std::distance(order.begin(), it);
-						 };
-						 return rank(a) < rank(b);
-					 });
+			std::stable_sort(
+				scenes.begin(), scenes.end(), [&order](const OBSSource &a, const OBSSource &b) {
+					const auto rank = [&order](const OBSSource &s) {
+						const char *name = obs_source_get_name(s);
+						const auto it = std::find(order.begin(), order.end(), name ? name : "");
+						return std::distance(order.begin(), it);
+					};
+					return rank(a) < rank(b);
+				});
 		}
 	}
 
@@ -444,8 +443,7 @@ QMimeData *MCLayersModel::mimeData(const QModelIndexList &indexes) const
 	return data;
 }
 
-bool MCLayersModel::canDropMimeData(const QMimeData *data, Qt::DropAction, int, int,
-				    const QModelIndex &parent) const
+bool MCLayersModel::canDropMimeData(const QMimeData *data, Qt::DropAction, int, int, const QModelIndex &parent) const
 {
 	if (!data || !data->hasFormat(mimeTypes().first())) {
 		return false;
@@ -708,9 +706,8 @@ void MCLayersModel::itemSelected(void *data, calldata_t *cd)
 {
 	auto *scene = static_cast<obs_scene_t *>(calldata_ptr(cd, "scene"));
 	auto *item = static_cast<obs_sceneitem_t *>(calldata_ptr(cd, "item"));
-	QMetaObject::invokeMethod(static_cast<MCLayersModel *>(data), "onElementSelectionChanged",
-				  Qt::QueuedConnection, Q_ARG(OBSScene, OBSScene(scene)),
-				  Q_ARG(OBSSceneItem, OBSSceneItem(item)));
+	QMetaObject::invokeMethod(static_cast<MCLayersModel *>(data), "onElementSelectionChanged", Qt::QueuedConnection,
+				  Q_ARG(OBSScene, OBSScene(scene)), Q_ARG(OBSSceneItem, OBSSceneItem(item)));
 }
 
 // MARK: - Qt-thread handlers

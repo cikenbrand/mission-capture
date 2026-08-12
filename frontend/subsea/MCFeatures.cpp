@@ -57,7 +57,11 @@ const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{
 	{Feature::StudioMode, "StudioMode", false, "Preview/Program studio mode switching", {"modeSwitch"}},
 	/* Only widgets and actions are listed -- a QLayout is neither, and hiding a
 	 * layout is not a thing in Qt. Hide the buttons; the layout collapses. */
-	{Feature::ReplayBuffer, "ReplayBuffer", false, "Replay buffer controls", {"replayBufferButton", "saveReplayButton"}},
+	{Feature::ReplayBuffer,
+	 "ReplayBuffer",
+	 false,
+	 "Replay buffer controls",
+	 {"replayBufferButton", "saveReplayButton"}},
 	{Feature::VirtualCam,
 	 "VirtualCam",
 	 false,
@@ -70,7 +74,11 @@ const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{
 	 {"streamButton", "broadcastButton"}},
 	{Feature::Transitions, "Transitions", false, "Scene transitions dock; inspection work cuts", {"transitionsDock"}},
 
-	{Feature::Stats, "Stats", false, "Upstream stats dock (Phase 1 replaces it with a Health panel)", {"statsDock", "stats"}},
+	{Feature::Stats,
+	 "Stats",
+	 false,
+	 "Upstream stats dock (Phase 1 replaces it with a Health panel)",
+	 {"statsDock", "stats"}},
 	{Feature::AdvancedAudio,
 	 "AdvancedAudio",
 	 false,
@@ -103,14 +111,21 @@ const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{
 	 "SceneCollectionImportExport",
 	 false,
 	 "Import/export of scene collections and profiles",
-	 {"actionImportSceneCollection", "actionExportSceneCollection", "actionImportProfile",
-	  "actionExportProfile"}},
+	 {"actionImportSceneCollection", "actionExportSceneCollection", "actionImportProfile", "actionExportProfile"}},
 
-	{Feature::IdianPlayground, "IdianPlayground", false, "Upstream widget-gallery developer surface", {"idianPlayground"}},
+	{Feature::IdianPlayground,
+	 "IdianPlayground",
+	 false,
+	 "Upstream widget-gallery developer surface",
+	 {"idianPlayground"}},
 
 	{Feature::ScenesDock, "ScenesDock", false, "Scenes dock (Phase 1 replaces it with Layers)", {"scenesDock"}},
 	{Feature::SourcesDock, "SourcesDock", false, "Sources dock (Phase 1 replaces it with Layers)", {"sourcesDock"}},
-	{Feature::LayersDock, "LayersDock", true, "The Layers tree: Canvases and their Elements in one panel", {"layersDock"}},
+	{Feature::LayersDock,
+	 "LayersDock",
+	 true,
+	 "The Layers tree: Canvases and their Elements in one panel",
+	 {"layersDock"}},
 }};
 
 /* Resolved state, and whether it came from features.ini or the compiled default. */

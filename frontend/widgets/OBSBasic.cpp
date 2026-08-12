@@ -1399,8 +1399,7 @@ void OBSBasic::OBSInit()
 	 * MCFeatures::apply() or everything still reports as visible. */
 	if (!opt_dump_ui_manifest.empty()) {
 		const bool ok = MCUIManifest::write(this, opt_dump_ui_manifest);
-		QMetaObject::invokeMethod(
-			qApp, [ok]() { qApp->exit(ok ? 0 : 1); }, Qt::QueuedConnection);
+		QMetaObject::invokeMethod(qApp, [ok]() { qApp->exit(ok ? 0 : 1); }, Qt::QueuedConnection);
 		return;
 	}
 

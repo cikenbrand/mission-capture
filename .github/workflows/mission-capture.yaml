@@ -27,7 +27,7 @@ jobs:
     name: Format
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -51,7 +51,7 @@ jobs:
     # Elgato's capture-device-support.
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
           fetch-depth: 0
@@ -70,7 +70,7 @@ jobs:
       # The prebuilt dependency bundles are ~1 GB and unchanged between runs
       # unless buildspec.json moves.
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .deps
           key: deps-windows-x64-${{ hashFiles('buildspec.json') }}
@@ -98,7 +98,7 @@ jobs:
           if ($vi.CompanyName -ne 'Cyberian Resources')   { throw 'CompanyName is not Cyberian Resources' }
 
       - name: Upload build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: mission-capture-windows-x64
           path: build_x64/rundir/RelWithDebInfo
@@ -116,12 +116,12 @@ jobs:
     # move the step into the build job -- once a few runs have proven it stable.
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
       - name: Download build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: mission-capture-windows-x64
           path: build_x64/rundir/RelWithDebInfo
@@ -134,7 +134,7 @@ jobs:
       # application log are worth reading.
       - name: Upload test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-reports
           path: tools/subsea-tests/out

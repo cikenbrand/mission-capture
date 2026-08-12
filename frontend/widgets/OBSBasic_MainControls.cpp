@@ -297,7 +297,7 @@ void OBSBasic::UploadLog(const char *subdir, const char *file, const LogUploadTy
 	 * To re-enable: stand up an endpoint, restore the RemoteTextThread call with
 	 * its URL, and make each upload an explicit, informed user action. */
 	blog(LOG_INFO, "Log upload is disabled in this build; '%s/%s' retained locally only", subdir, file);
-	emit App()->logUploadFailed(uploadType, QTStr("LogUploadDialog.Errors.UploadDisabled"));
+	emit App() -> logUploadFailed(uploadType, QTStr("LogUploadDialog.Errors.UploadDisabled"));
 }
 
 void OBSBasic::on_actionShowLogs_triggered()
