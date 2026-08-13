@@ -25,6 +25,7 @@
 #include "MCJobMetadata.hpp"
 #include "MCLayersModel.hpp"
 #include "MCRecordLock.hpp"
+#include "MCRtspElement.hpp"
 #include "MCSignalWatch.hpp"
 #include "MCVideoCaptureElement.hpp"
 
@@ -467,6 +468,53 @@ bool write(OBSBasic *main, const std::string &path)
 		watch["watched"] = elements;
 
 		root["signalWatch"] = watch;
+	}
+
+	/* --- RTSP element (task 2.4) ------------------------------------------ */
+	/*
+	 * Settings and credential handling for a representative configuration.
+	 * Pure functions, so nothing connects to anything -- but they cover the two
+	 * things most likely to be quietly wrong: the low-latency defaults that
+	 * differ from upstream, and whether a password can reach a log.
+	 */
+	{
+		QJsonObject rtsp;
+
+		MCRtspElement::Config probe;
+		probe.url = QStringLiteral("rtsp://cam.example:554/stream1");
+		probe.username = QStringLiteral("diver");
+		probe.password = QStringLiteral("p@ss:word/1");
+		probe.useTcp = true;
+		probe.latency = MCRtspElement::Config::Latency::Balanced;
+
+		const QString composed = MCRtspElement::composeUrl(probe);
+		rtsp["sourceId"] = QString::fromUtf8(MCRtspElement::sourceId());
+		rtsp["scrubbed"] = MCRtspElement::scrubUrl(composed);
+
+		/* Whether the raw password survives anywhere in the scrubbed form. The
+		 * password deliberately contains ':', '@' and '/' -- the characters
+		 * that break naive string surgery. */
+		rtsp["scrubHidesPassword"] = !MCRtspElement::scrubUrl(composed).contains(probe.password);
+		rtsp["composedKeepsUser"] = composed.contains(QStringLiteral("diver"));
+
+		OBSDataAutoRelease settings = MCRtspElement::settingsFor(probe);
+		rtsp["settingsJson"] = QString::fromUtf8(obs_data_get_json(settings));
+
+		QJsonObject presets;
+		for (const auto &[name, latency] : {std::pair{"lowest", MCRtspElement::Config::Latency::Lowest},
+						    std::pair{"balanced", MCRtspElement::Config::Latency::Balanced},
+						    std::pair{"stable", MCRtspElement::Config::Latency::Stable}}) {
+			MCRtspElement::Config c = probe;
+			c.latency = latency;
+			presets[QString::fromUtf8(name)] = MCRtspElement::ffmpegOptionsFor(c);
+		}
+
+		MCRtspElement::Config udp = probe;
+		udp.useTcp = false;
+		presets["udp"] = MCRtspElement::ffmpegOptionsFor(udp);
+		rtsp["ffmpegOptions"] = presets;
+
+		root["rtsp"] = rtsp;
 	}
 
 	/* --- Settings dialog ------------------------------------------------ */

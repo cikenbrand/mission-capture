@@ -29,6 +29,7 @@
 #include <atomic>
 #include <mutex>
 #include <set>
+#include <cstring>
 #include <string>
 
 namespace MCSignalWatch {
@@ -166,9 +167,37 @@ void attachTo(obs_source_t *source)
 	obs_source_filter_add(source, filter);
 }
 
+/*
+ * Which Elements are worth watching.
+ *
+ * Capture devices, and network media -- an RTSP camera is the source *most*
+ * likely to drop, so leaving it unwatched would have missed the common case.
+ * A local file is excluded: it ends when it ends, and calling that a lost
+ * signal would be wrong. In practice task 1.6 does not offer local media at
+ * all, so an ffmpeg_source in a Job is a camera.
+ */
+bool isWatchable(obs_source_t *source)
+{
+	const char *id = obs_source_get_id(source);
+	if (!id) {
+		return false;
+	}
+
+	if (MCCaptureProperties::isCaptureSource(id)) {
+		return true;
+	}
+
+	if (strcmp(id, "ffmpeg_source") == 0) {
+		OBSDataAutoRelease settings = obs_source_get_settings(source);
+		return settings && !obs_data_get_bool(settings, "is_local_file");
+	}
+
+	return false;
+}
+
 bool attachIfCapture(void *, obs_source_t *source)
 {
-	if (MCCaptureProperties::isCaptureSource(obs_source_get_id(source))) {
+	if (isWatchable(source)) {
 		attachTo(source);
 	}
 	return true;
@@ -177,7 +206,7 @@ bool attachIfCapture(void *, obs_source_t *source)
 void onSourceCreated(void *, calldata_t *cd)
 {
 	auto *source = static_cast<obs_source_t *>(calldata_ptr(cd, "source"));
-	if (source && MCCaptureProperties::isCaptureSource(obs_source_get_id(source))) {
+	if (source && isWatchable(source)) {
 		/* Queued: the source is still being constructed when this fires, and
 		 * adding a filter to a half-built source is asking for trouble. */
 		QMetaObject::invokeMethod(qApp, [ref = OBSSource(source)]() { attachTo(ref); }, Qt::QueuedConnection);
@@ -229,9 +258,15 @@ void sample()
 		 * come back?" from the log alone -- nobody is watching the screen at
 		 * the moment it matters.
 		 */
-		blog(LOG_WARNING, "[MCSignalWatch] '%s' (%s): %s%s", watch->elementName.c_str(),
-		     watch->sourceId.c_str(), is == State::Lost ? "SIGNAL LOST" : "signal restored",
-		     is == State::Lost ? " -- no frames for the last few seconds" : "");
+		/* "acquired" the first time, "restored" thereafter: on the first
+		 * transition nothing was ever lost, and a log saying otherwise sends a
+		 * post-dive reviewer looking for a dropout that never happened. */
+		const char *what = (is == State::Lost)       ? "SIGNAL LOST -- no frames for the last few seconds"
+				   : (was == State::Unknown) ? "signal acquired"
+							     : "signal restored";
+
+		blog(LOG_WARNING, "[MCSignalWatch] '%s' (%s): %s", watch->elementName.c_str(), watch->sourceId.c_str(),
+		     what);
 	}
 }
 

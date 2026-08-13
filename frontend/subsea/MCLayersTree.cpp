@@ -19,6 +19,7 @@
 #include "MCLayersDelegate.hpp"
 #include "MCLayersModel.hpp"
 #include "MCRecordLock.hpp"
+#include "MCRtspElement.hpp"
 
 #include <OBSApp.hpp>
 #include <widgets/OBSBasic.hpp>
@@ -435,6 +436,18 @@ void MCLayersTree::contextMenuEvent(QContextMenuEvent *event)
 	 */
 	addUpstreamAction(menu, "actionAddScene");
 	addUpstreamAction(menu, "actionAddSource");
+
+	/* RTSP has no entry in upstream's Add Source list -- it is an ffmpeg_source
+	 * with particular settings, not a type of its own -- so it needs its own
+	 * way in until task 2.5 builds the three-button picker. */
+	{
+		const QModelIndex target = index.isValid() ? index : currentIndex();
+		OBSScene scene = model_->canvasAt(target);
+		QAction *rtsp = menu.addAction(QTStr("Rtsp.AddElement"));
+		rtsp->setObjectName(QStringLiteral("actionAddRtspCamera"));
+		rtsp->setEnabled(scene != nullptr);
+		connect(rtsp, &QAction::triggered, this, [this, scene]() { MCRtspElement::promptAndAdd(this, scene); });
+	}
 
 	/*
 	 * The lock override. Offered only while recording, because the rest of the

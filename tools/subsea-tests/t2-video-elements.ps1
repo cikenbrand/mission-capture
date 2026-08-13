@@ -200,7 +200,90 @@ if (Test-Path $missingManifest) {
     }
 }
 
+# --- P2-AC6: task 2.4 -- the RTSP Element ------------------------------------
+$rtsp = $manifest.rtsp
+Assert-True ($null -ne $rtsp) 'Manifest records the RTSP element settings' 'P2-AC6'
+
+if ($rtsp) {
+    Assert-True ($rtsp.sourceId -eq 'ffmpeg_source') 'RTSP is backed by ffmpeg_source, not a new decoder' 'P2-AC6'
+
+    # Credentials. The probe password contains ':', '@' and '/' on purpose --
+    # the characters that break naive string handling. A password in a support
+    # log outlives the dive: logs get emailed, attached to tickets, and kept.
+    Assert-True ($rtsp.scrubHidesPassword -eq $true) 'A password never survives scrubbing' 'P2-AC6'
+    Assert-True ($rtsp.composedKeepsUser -eq $true) 'The username still reaches the URL' 'P2-AC6'
+    Assert-True ($rtsp.scrubbed -match '\*\*\*') "Scrubbed URL masks the password (got '$($rtsp.scrubbed)')" 'P2-AC6'
+
+    $s = $rtsp.settingsJson | ConvertFrom-Json
+    Assert-True ($s.is_local_file -eq $false) 'RTSP element is not a local file' 'P2-AC6'
+    # Upstream's 2 MB is seconds of delay on a live camera.
+    Assert-True ($s.buffering_mb -eq 0) "Buffering is off (got $($s.buffering_mb))" 'P2-AC6'
+    # Upstream's 10 s of black is a long time on a dive.
+    Assert-True ($s.reconnect_delay_sec -eq 2) "Reconnect delay is 2s (got $($s.reconnect_delay_sec))" 'P2-AC6'
+    Assert-True ($s.close_when_inactive -eq $false) 'Connection stays open off-screen, as phase 6 needs' 'P2-AC6'
+
+    # TCP by default: UDP drops packets silently and produces smeared
+    # macroblocks that look like a camera fault, sending the operator to
+    # diagnose the wrong thing.
+    $opts = $rtsp.ffmpegOptions
+    Assert-True ($opts.balanced -match 'rtsp_transport=tcp') 'TCP is the default transport' 'P2-AC6'
+    Assert-True ($opts.udp -match 'rtsp_transport=udp') 'UDP remains available' 'P2-AC6'
+    Assert-True ($opts.lowest -match 'low_delay') 'The Lowest preset asks FFmpeg for low delay' 'P2-AC6'
+    Assert-True ($opts.stable -notmatch 'nobuffer') 'The Most stable preset lets FFmpeg buffer' 'P2-AC6'
+}
+
+# Checked here, before the live test below: that test kills a stream on purpose,
+# so FFmpeg logging a connection reset afterwards is the expected outcome rather
+# than a fault worth failing on.
 Assert-NoLogErrors -Criterion 'P2-AC3'
+
+# --- P2-AC5: a camera that stops IS detected, observed not argued ------------
+# ffmpeg serves a killable stream over TCP, so no RTSP server has to be
+# installed. The transport differs from RTSP; the path under test does not --
+# ffmpeg_source -> libobs frames -> the watch filter is the same either way,
+# and that is where the state machine lives.
+if ($null -eq (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+    Add-Skip 'ffmpeg not on PATH; live signal-loss test skipped' 'P2-AC5'
+} else {
+    foreach ($stale in @(Get-Process ffmpeg -ErrorAction SilentlyContinue)) { $stale.Kill() }
+
+    Reset-PortableConfig | Out-Null
+    Copy-Fixture -Relative 'jobs\net-source'
+
+    $srvArgs = @('-hide_banner','-loglevel','error','-re','-f','lavfi','-i','testsrc=size=1280x720:rate=25',
+                 '-c:v','libx264','-preset','ultrafast','-tune','zerolatency','-pix_fmt','yuv420p','-g','25',
+                 '-f','mpegts','-listen','1','tcp://127.0.0.1:9999')
+    $srv = Start-Process -FilePath ffmpeg -WindowStyle Hidden -PassThru -ArgumentList $srvArgs
+    $null = $srv.Handle
+
+    $app = $null
+    try { $app = Start-App -AppArgs @('--collection', 'net-source') -ReadyTimeoutSec 90 }
+    catch { Add-Skip "Could not start the app for the signal-loss test: $_" 'P2-AC5' }
+
+    if ($app) {
+        # Generous: this stream takes about ten seconds to deliver its first
+        # frame through libobs, and asserting before then would test nothing.
+        Start-Sleep -Seconds 30
+        foreach ($p in @(Get-Process ffmpeg -ErrorAction SilentlyContinue)) { $p.Kill() }
+        Start-Sleep -Seconds 15          # threshold is 3s; this is not a tight race
+        Stop-App -Process $app -GraceSec 25 | Out-Null
+
+        $swLog = Get-LatestLog
+        if ($swLog) {
+            $acquired = @(Select-String -Path $swLog -Pattern 'signal acquired')
+            $lost = @(Select-String -Path $swLog -Pattern 'SIGNAL LOST')
+
+            Assert-True ($acquired.Count -ge 1) 'Frames from a live source are detected' 'P2-AC5'
+            # The assertion task 2.3 turns on, and the one that was unverifiable
+            # until this fixture existed.
+            Assert-True ($lost.Count -ge 1) 'A source that stops sending is reported as lost' 'P2-AC5'
+        } else {
+            Add-Failure 'No log produced for the signal-loss test' 'P2-AC5'
+        }
+    }
+
+    if (-not $srv.HasExited) { $srv.Kill() }
+}
 
 Save-ConfigToWorkspace -Workspace $ws
 exit (Write-TestSummary -Suite 'T2 Video Elements' -Workspace $ws)

@@ -1,0 +1,88 @@
+{
+    "current_scene": "Net Cam",
+    "current_program_scene": "Net Cam",
+    "name": "net-source",
+    "scene_order": [
+        {
+            "name": "Net Cam"
+        }
+    ],
+    "sources": [
+        {
+            "id": "scene",
+            "versioned_id": "scene",
+            "name": "Net Cam",
+            "settings": {
+                "items": [
+                    {
+                        "name": "Net Feed",
+                        "visible": true,
+                        "locked": false,
+                        "pos": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        }
+                    }
+                ],
+                "id_counter": 1
+            },
+            "mixers": 0,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
+            "muted": false,
+            "push-to-mute": false,
+            "push-to-mute-delay": 0,
+            "push-to-talk": false,
+            "push-to-talk-delay": 0,
+            "hotkeys": {},
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
+        },
+        {
+            "id": "ffmpeg_source",
+            "versioned_id": "ffmpeg_source",
+            "name": "Net Feed",
+            "settings": {
+                "is_local_file": false,
+                "input": "tcp://127.0.0.1:9999",
+                "buffering_mb": 0,
+                "reconnect_delay_sec": 2,
+                "hw_decode": true,
+                "close_when_inactive": false,
+                "restart_on_activate": false
+            },
+            "mixers": 255,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
+            "muted": false,
+            "push-to-mute": false,
+            "push-to-mute-delay": 0,
+            "push-to-talk": false,
+            "push-to-talk-delay": 0,
+            "hotkeys": {},
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
+        }
+    ]
+}
