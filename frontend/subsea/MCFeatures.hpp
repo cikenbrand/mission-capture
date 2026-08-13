@@ -114,6 +114,9 @@ enum class Feature {
 	 * a widget: it is read by MCElementTypes, not by apply(). */
 	AllSourceTypes,
 
+	/* Task 1.7, also behavioural: read by OBSBasic::CreateFirstRunSources(). */
+	DesktopAudio,
+
 	Count_
 };
 

@@ -291,6 +291,54 @@ if ((Test-Path $featuresIni) -and $types.Count) {
         Set-Content -Encoding utf8 $featuresIni
 }
 
+# --- P1-AC10: task 1.7 -- the Rig template -----------------------------------
+# These are set with config_set_default_*, which writes nothing to basic.ini, so
+# the manifest is the only place the effective values can be read.
+$rd = $manifest.recordingDefaults
+Assert-True ($null -ne $rd) 'Manifest records the recording defaults' 'P1-AC10'
+
+if ($rd) {
+    # The one that is not a preference: MP4 writes its index at the end, so a
+    # power loss mid-dive leaves an unopenable file. MKV does not.
+    Assert-True ($rd.'SimpleOutput/RecFormat2' -eq 'mkv') `
+                "Recording container is MKV (got '$($rd.'SimpleOutput/RecFormat2')')" 'P1-AC10'
+    Assert-True ($rd.'AdvOut/RecFormat2' -eq 'mkv') `
+                "Advanced-mode container is MKV (got '$($rd.'AdvOut/RecFormat2')')" 'P1-AC10'
+
+    # ...and nothing silently converts it afterwards.
+    Assert-True ($rd.'Video/AutoRemux' -eq $false) 'Auto-remux is off' 'P1-AC10'
+
+    # Quality-targeted, not bitrate-targeted. HQ is CRF 16 / CQP.
+    Assert-True ($rd.'SimpleOutput/RecQuality' -eq 'HQ') `
+                "Recording is quality-targeted (got '$($rd.'SimpleOutput/RecQuality')')" 'P1-AC10'
+
+    # Hardware encoder where the machine has one. x264 is a valid outcome on a
+    # runner with no GPU, so this asserts the choice is sane rather than fixed.
+    Assert-True ($rd.'SimpleOutput/RecEncoder' -in @('nvenc', 'amd', 'x264')) `
+                "Recording encoder resolved to '$($rd.'SimpleOutput/RecEncoder')'" 'P1-AC10'
+
+    Assert-True ($rd.'Output/FilenameFormatting' -eq '%JOB%_%CANVAS%_%CCYY%%MM%%DD%_%hh%%mm%%ss%') `
+                'Filename template is the inspection template' 'P1-AC10'
+
+    # The tokens must actually resolve -- a template that survives into the
+    # filename literally would be worse than not having one.
+    Assert-True ($rd.filenameExample -notmatch '%JOB%|%CANVAS%') `
+                "%JOB% and %CANVAS% expand (got '$($rd.filenameExample)')" 'P1-AC10'
+    Assert-True ($rd.filenameExample -match '^[^<>:"/\\|?*]+$') `
+                'Expanded filename contains no characters illegal in a filename' 'P1-AC10'
+
+    Assert-True ($rd.'AdvOut/RecSplitFile' -eq $true) 'Recording auto-split is on' 'P1-AC10'
+    Assert-True ($rd.'AdvOut/RecSplitFileType' -eq 'Time') 'Auto-split is by time' 'P1-AC10'
+
+    # One comms channel, no desktop audio. Channel 1 is desktop, 3 is mic/aux.
+    $channels = @($rd.audioChannels)
+    $desktop = @($channels | Where-Object { $_.channel -eq 1 })
+    Assert-True ($desktop.Count -eq 0) `
+                'A new Job captures no desktop audio' 'P1-AC10'
+    Assert-True ($channels.Count -le 1) `
+                "A new Job has at most one global audio channel (got $($channels.Count))" 'P1-AC10'
+}
+
 # --- English is the only language offered ------------------------------------
 $localeIndex = Join-Path (Get-RunDir) 'data\obs-studio\locale.ini'
 if (Test-Path $localeIndex) {

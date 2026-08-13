@@ -193,6 +193,14 @@ const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{
 	 false,
 	 "Offer every OBS source type when adding an Element, not just the three this product uses",
 	 {}},
+	/* Also behavioural rather than a widget. A new Job gets a comms mic and
+	 * nothing else: desktop audio on an inspection recorder captures Windows
+	 * notification sounds into the record. */
+	{Feature::DesktopAudio,
+	 "DesktopAudio",
+	 false,
+	 "Capture desktop audio on a new Job, in addition to the comms mic",
+	 {}},
 }};
 
 /* Resolved state, and whether it came from features.ini or the compiled default. */

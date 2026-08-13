@@ -40,6 +40,7 @@
 #include <models/SceneCollection.hpp>
 #include <settings/OBSBasicSettings.hpp>
 #include <subsea/MCBranding.hpp>
+#include <subsea/MCDefaults.hpp>
 #include <subsea/MCFeatures.hpp>
 #include <subsea/MCLayersTree.hpp>
 #include <subsea/MCUIManifest.hpp>
@@ -626,6 +627,22 @@ static const double scaled_vals[] = {1.0, 1.25, (1.0 / 0.75), 1.5, (1.0 / 0.6), 
 
 bool OBSBasic::InitBasicConfigDefaults()
 {
+	/*
+	 * Mission Capture: the Rig template, and it has to go FIRST -- which is the
+	 * opposite of what "override the defaults below" suggests.
+	 *
+	 * config_set_item_default() copies the value into the *user* section map
+	 * whenever no user value exists yet (libobs/util/config-file.c), and
+	 * config_get_string() reads that map before the defaults map. So for any
+	 * given key the FIRST default set is the one that takes effect, and setting
+	 * ours afterwards would land in the defaults map where nothing reads it.
+	 *
+	 * A genuine operator value from basic.ini is already in the section map by
+	 * now -- the profile is loaded before this runs -- so it still beats ours.
+	 * See frontend/subsea/MCDefaults.hpp.
+	 */
+	MCDefaults::apply(activeConfiguration);
+
 	QList<QScreen *> screens = QGuiApplication::screens();
 
 	if (!screens.size()) {
@@ -900,6 +917,9 @@ bool OBSBasic::InitBasicConfigDefaults()
 
 void OBSBasic::InitBasicConfigDefaults2()
 {
+	/* Mission Capture: first, for the same reason as in the function above. */
+	MCDefaults::applyEncoders(activeConfiguration);
+
 	bool oldEncDefaults = config_get_bool(App()->GetUserConfig(), "General", "Pre23Defaults");
 	bool useNV = EncoderAvailable("ffmpeg_nvenc") && !oldEncDefaults;
 

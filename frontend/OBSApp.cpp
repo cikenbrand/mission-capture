@@ -21,6 +21,7 @@
 #include <dialogs/LogUploadDialog.hpp>
 #include <plugin-manager/PluginManager.hpp>
 #include <subsea/MCBranding.hpp>
+#include <subsea/MCDefaults.hpp>
 #include <subsea/MCFeatures.hpp>
 #include <utility/CrashHandler.hpp>
 #include <utility/OBSEventFilter.hpp>
@@ -1542,7 +1543,13 @@ string GenerateTimeDateFilename(const char *extension, bool noSpace)
 
 string GenerateSpecifiedFilename(const char *extension, bool noSpace, const char *format)
 {
-	BPtr<char> filename = os_generate_formatted_filename(extension, !noSpace, format);
+	/* Mission Capture: resolve %JOB% and %CANVAS% before libobs sees the
+	 * template -- it knows the date and time tokens but not our vocabulary.
+	 * Done here because this is the single point every recording, screenshot
+	 * and replay filename passes through. */
+	const string expanded = MCDefaults::expandTokens(format);
+
+	BPtr<char> filename = os_generate_formatted_filename(extension, !noSpace, expanded.c_str());
 	return string(filename);
 }
 

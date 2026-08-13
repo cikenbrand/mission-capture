@@ -16,6 +16,7 @@
 ******************************************************************************/
 
 #include "MCUIManifest.hpp"
+#include "MCDefaults.hpp"
 #include "MCElementTypes.hpp"
 #include "MCFeatures.hpp"
 #include "MCLayersModel.hpp"
@@ -191,6 +192,63 @@ bool write(OBSBasic *main, const std::string &path)
 		}
 
 		root["layers"] = canvases;
+	}
+
+	/* --- Recording defaults (task 1.7) ----------------------------------- */
+	/* The Rig template is applied with config_set_default_*, which by design
+	 * writes nothing to basic.ini -- only operator overrides land there. So the
+	 * effective values cannot be read off disk, and without recording them here
+	 * the defaults would have no automated verification at all. */
+	{
+		config_t *config = main->Config();
+		QJsonObject defaults;
+
+		/* Section-qualified keys. RecFormat2 exists under both SimpleOutput
+		 * and AdvOut with different values, so a bare key name would let one
+		 * silently overwrite the other. */
+		auto str = [&](const char *section, const char *key) {
+			const char *value = config_get_string(config, section, key);
+			defaults[QString("%1/%2").arg(section, key)] = QString::fromUtf8(value ? value : "");
+		};
+		auto flag = [&](const char *section, const char *key) {
+			defaults[QString("%1/%2").arg(section, key)] = config_get_bool(config, section, key);
+		};
+
+		str("Output", "Mode");
+		str("SimpleOutput", "RecFormat2");
+		str("SimpleOutput", "RecQuality");
+		str("SimpleOutput", "RecEncoder");
+		str("Output", "FilenameFormatting");
+		str("AdvOut", "RecFormat2");
+		str("AdvOut", "RecSplitFileType");
+
+		flag("Video", "AutoRemux");
+		flag("AdvOut", "RecSplitFile");
+		defaults["AdvOut/RecSplitFileTime"] =
+			static_cast<int>(config_get_uint(config, "AdvOut", "RecSplitFileTime"));
+
+		/* Resolved, not just templated: proves the tokens actually expand. */
+		defaults["filenameExample"] = QString::fromStdString(
+			MCDefaults::expandTokens(config_get_string(config, "Output", "FilenameFormatting")));
+
+		/* Which global audio channels a new Job came up with. Channel 1 is
+		 * desktop audio and should be empty; channel 3 is the comms mic. */
+		QJsonArray audioChannels;
+		for (uint32_t channel = 1; channel <= 6; channel++) {
+			OBSSourceAutoRelease source = obs_get_output_source(channel);
+			if (!source) {
+				continue;
+			}
+
+			QJsonObject entry;
+			entry["channel"] = static_cast<int>(channel);
+			entry["name"] = QString::fromUtf8(obs_source_get_name(source));
+			entry["id"] = QString::fromUtf8(obs_source_get_id(source));
+			audioChannels.append(entry);
+		}
+		defaults["audioChannels"] = audioChannels;
+
+		root["recordingDefaults"] = defaults;
 	}
 
 	/* --- Settings dialog ------------------------------------------------ */

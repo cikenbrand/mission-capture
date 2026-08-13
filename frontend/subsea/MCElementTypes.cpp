@@ -35,6 +35,12 @@ namespace {
  * so that the filter does not have to be revisited when they land, and so this
  * table reads as the product's intended surface rather than as a snapshot of
  * what happens to be built.
+ *
+ * Audio inputs are absent by decision, not by oversight (confirmed 2026-08-13).
+ * This product takes audio globally -- one comms channel configured in Settings
+ * and shown in the Mixer -- so a per-Canvas audio Element would be a second way
+ * to do the same thing, with its own routing to get wrong mid-dive. Do not add
+ * wasapi_* here without revisiting that.
  */
 constexpr std::array<const char *, 4> allowlist{{
 	/* Video Capture Device (task 2.1 unifies these two behind one picker). */

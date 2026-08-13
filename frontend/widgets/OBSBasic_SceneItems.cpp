@@ -25,6 +25,7 @@
 #include <dialogs/NameDialog.hpp>
 #include <dialogs/OBSBasicAdvAudio.hpp>
 #include <dialogs/OBSBasicSourceSelect.hpp>
+#include <subsea/MCFeatures.hpp>
 #include <utility/item-widget-helpers.hpp>
 
 #include <qt-wrappers.hpp>
@@ -101,7 +102,10 @@ void OBSBasic::CreateFirstRunSources()
 	}
 #endif
 
-	if (hasDesktopAudio) {
+	/* Mission Capture: a new Job gets the comms mic and nothing else. Desktop
+	 * audio on an inspection recorder captures Windows notification sounds into
+	 * a record that may later be evidence. Restorable via features.ini. */
+	if (hasDesktopAudio && MCFeatures::enabled(MCFeatures::Feature::DesktopAudio)) {
 		ResetAudioDevice(App()->OutputAudioSource(), "default", Str("Basic.DesktopDevice1"), 1);
 	}
 	if (hasInputAudio) {
