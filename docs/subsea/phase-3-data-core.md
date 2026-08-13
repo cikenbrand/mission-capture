@@ -8,16 +8,28 @@ This exists so [Phase 4](phase-4-overlay-editor.md) can bind `{DEPTH}` on day on
 
 **Effort:** 2–3 weeks.
 
-> ### 🔔 Ask the user before starting
+> ### ✅ Answered by the user, 2026-08-13
 >
-> **How many channels, at what rate?** You deferred this. It sizes the registry's data structures
-> and decides whether a mutex-protected hash table is adequate or the hot path needs a seqlock.
-> 20 channels at 1 Hz and 200 channels at 50 Hz are different engineering problems. Ask again at
-> the start of [Phase 5](phase-5-transports.md), which sizes the transports.
+> **At most four RS-232 devices**, chosen by the operator. Not a soft target — a hard cap, so the
+> configuration UI can show four slots rather than an unbounded list, and so the engine can size
+> itself once at startup instead of growing.
 >
-> Working assumption until told otherwise: **≤ 64 channels across ≤ 4 devices, ≤ 20 Hz each.**
-> The design below holds comfortably at 10× that; it is stated so the assumption is explicit, not
-> because it is a limit.
+> **1–10 Hz per device.** The design headroom below is deliberately larger; the figure that matters
+> is that this is *slow* data by any streaming standard. At 10 Hz across four devices the engine
+> sees forty frames a second, which is two orders of magnitude below the point where a
+> mutex-protected registry would need replacing with a seqlock. **So the hot path stays simple**, and
+> that decision is now evidence-based rather than assumed.
+>
+> **Each port is configured independently**: COM port, baud rate, data bits, stop bits, parity.
+> Four devices on one vessel will not agree on these, so they are per-device settings, not global.
+>
+> **The payload is positional comma-separated floats** — `1.031,5.132,6.122,…` — where position
+> *is* the meaning: heading, CP, northing, easting and so on. This makes the **Delimited** parser
+> in task 3.3 the primary one, and the index→channel map the thing that must be easy to get right
+> and hard to get silently wrong. Key/value and regex remain for the systems that do not conform.
+>
+> Working ceiling, sized well above the answers so nothing has to be revisited:
+> **≤ 64 channels across ≤ 4 devices, ≤ 20 Hz each.**
 
 **Why now:** see [README §4.1](README.md#41-sequencing-notes).
 
