@@ -206,6 +206,16 @@ void applyUserDefaults(config_t *userConfig)
 	config_set_default_int(userConfig, "BasicWindow", "DiskCautionGB", 10);
 	config_set_default_int(userConfig, "BasicWindow", "DiskCriticalGB", 2);
 	config_set_default_int(userConfig, "BasicWindow", "DiskStopGB", 1);
+
+	/*
+	 * How long a camera may go quiet before it is called lost.
+	 *
+	 * Three seconds is long enough that a brief hiccup or a format renegotiation
+	 * does not flash a banner over working video, and short enough that an
+	 * operator learns about a dead camera while the ROV is still near whatever
+	 * it was looking at.
+	 */
+	config_set_default_int(userConfig, "BasicWindow", "SignalLostAfterSeconds", 3);
 }
 
 std::string expandTokens(const char *format)

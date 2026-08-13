@@ -139,6 +139,7 @@ void MCLayersDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opti
 	const bool visible = !element || index.data(MCLayersModel::VisibleRole).toBool();
 	const bool locked = element && index.data(MCLayersModel::LockedRole).toBool();
 	const bool program = !element && index.data(MCLayersModel::ProgramRole).toBool();
+	const bool signalLost = element && index.data(MCLayersModel::SignalLostRole).toBool();
 
 	const bool selected = opt.state & QStyle::State_Selected;
 	QColor fg = opt.palette.color(selected ? QPalette::HighlightedText : QPalette::Text);
@@ -172,6 +173,24 @@ void MCLayersDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opti
 		painter->drawEllipse(QPointF(x + 4, opt.rect.center().y() + 1), 4.0, 4.0);
 		painter->restore();
 		x += 14;
+	}
+
+	/*
+	 * A camera that has stopped sending gets a red dot and its name in red.
+	 * Neither backend announces the loss -- libobs keeps rendering the last
+	 * frame -- so without this the tree shows a healthy-looking Element for a
+	 * camera that died ten minutes ago.
+	 */
+	if (signalLost) {
+		painter->save();
+		painter->setRenderHint(QPainter::Antialiasing);
+		painter->setPen(Qt::NoPen);
+		painter->setBrush(QColor(220, 60, 60));
+		painter->drawEllipse(QPointF(x + 4, opt.rect.center().y() + 1), 4.0, 4.0);
+		painter->restore();
+		x += 14;
+
+		rowFg = QColor(230, 90, 90);
 	}
 
 	const int rightReserve = element ? (kToggleSize * 2 + kToggleSpacing * 3) : 4;

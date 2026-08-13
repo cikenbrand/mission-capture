@@ -22,6 +22,7 @@
 #include <plugin-manager/PluginManager.hpp>
 #include <subsea/MCBranding.hpp>
 #include <subsea/MCDefaults.hpp>
+#include <subsea/MCSignalWatch.hpp>
 #include <subsea/MCFeatures.hpp>
 #include <utility/CrashHandler.hpp>
 #include <utility/OBSEventFilter.hpp>
@@ -1318,6 +1319,11 @@ bool OBSApp::OBSInit()
 	/* Mission Capture: window-level defaults, which live in the user config
 	 * rather than a Rig. See frontend/subsea/MCDefaults.hpp. */
 	MCDefaults::applyUserDefaults(GetUserConfig());
+
+	/* Mission Capture: the signal-watch filter must exist before any Element is
+	 * created, or the Elements in the first Job load without one.
+	 * See frontend/subsea/MCSignalWatch.hpp. */
+	MCSignalWatch::registerFilter();
 
 	thumbnailManager = new ThumbnailManager(this);
 

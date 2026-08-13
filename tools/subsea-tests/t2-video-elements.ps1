@@ -160,6 +160,46 @@ if (Test-Path $missingManifest) {
     }
 }
 
+# --- P2-AC5: task 2.3 -- a camera that stops is noticed ----------------------
+# The hard part of this task is that nothing announces the loss: both backends
+# simply stop delivering, and libobs keeps rendering the last frame. So the
+# watch counts frames through a filter, and these assertions check the
+# machinery is in place -- on a machine with no camera, which is the case where
+# it matters most.
+if (Test-Path $missingManifest) {
+    $sw = (Get-Content $missingManifest -Raw | ConvertFrom-Json).signalWatch
+    Assert-True ($null -ne $sw) 'Manifest records the signal watch' 'P2-AC5'
+
+    if ($sw) {
+        # A registration that silently failed would leave every Element
+        # unwatched with nothing to show for it.
+        Assert-True ($sw.filterRegistered -eq $true) `
+                    'The signal-watch filter type is registered with libobs' 'P2-AC5'
+        Assert-True ($sw.lostThresholdSeconds -gt 0) `
+                    "Loss threshold is configured ($($sw.lostThresholdSeconds)s)" 'P2-AC5'
+
+        # The fixture's camera does not exist, and it still gets watched --
+        # an Element whose device is absent is precisely the one whose health
+        # the operator needs to see.
+        $watched = @($sw.watched)
+        Assert-True ($watched.Count -ge 1) `
+                    "A capture Element with no device is still watched ($($watched.Count) watched)" 'P2-AC5'
+
+        if ($watched.Count -ge 1) {
+            Assert-True ($watched[0].element -eq 'Pilot Cam Feed') `
+                        "The watch resolves the Element's name (got '$($watched[0].element)')" 'P2-AC5'
+            Assert-True ($watched[0].frames -eq 0) `
+                        'An absent camera has delivered no frames' 'P2-AC5'
+
+            # Never-connected is deliberately NOT reported as lost: putting a
+            # "reconnecting" marker on a camera that was never there would be
+            # misleading, and it is a different problem from one that dropped.
+            Assert-True ($watched[0].state -eq 'unknown') `
+                        "A camera that never connected is not reported as lost (got '$($watched[0].state)')" 'P2-AC5'
+        }
+    }
+}
+
 Assert-NoLogErrors -Criterion 'P2-AC3'
 
 Save-ConfigToWorkspace -Workspace $ws

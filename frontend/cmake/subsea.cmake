@@ -33,8 +33,10 @@ target_sources(
     subsea/MCRecordIndicator.hpp
     subsea/MCRecordLock.cpp
     subsea/MCRecordLock.hpp
-    subsea/MCVideoCaptureElement.cpp
-    subsea/MCVideoCaptureElement.hpp
+    subsea/MCSignalWatch.cpp
+    subsea/MCSignalWatch.hpp
     subsea/MCUIManifest.cpp
     subsea/MCUIManifest.hpp
+    subsea/MCVideoCaptureElement.cpp
+    subsea/MCVideoCaptureElement.hpp
 )

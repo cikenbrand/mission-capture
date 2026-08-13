@@ -25,6 +25,7 @@
 #include "MCJobMetadata.hpp"
 #include "MCLayersModel.hpp"
 #include "MCRecordLock.hpp"
+#include "MCSignalWatch.hpp"
 #include "MCVideoCaptureElement.hpp"
 
 #include <OBSApp.hpp>
@@ -34,6 +35,7 @@
 #include <obs.h>
 
 #include <array>
+#include <cstring>
 
 #include <QAction>
 #include <QDockWidget>
@@ -419,6 +421,52 @@ bool write(OBSBasic *main, const std::string &path)
 		filter["isCaptureSource_other"] = MCCaptureProperties::isCaptureSource("color_source");
 
 		root["captureProperties"] = filter;
+	}
+
+	/* --- Signal watch (task 2.3) ------------------------------------------ */
+	/*
+	 * The filter must be registered and attached even on a machine with no
+	 * camera -- an Element whose device is absent is exactly the one whose
+	 * health matters. Recording the registration separately from the attachment
+	 * matters too: a registration that silently failed would leave every
+	 * Element unwatched with nothing to show for it.
+	 */
+	{
+		QJsonObject watch;
+
+		bool filterRegistered = false;
+		const char *typeId = nullptr;
+		for (size_t i = 0; obs_enum_filter_types(i, &typeId); i++) {
+			if (typeId && strcmp(typeId, "mc_signal_watch") == 0) {
+				filterRegistered = true;
+				break;
+			}
+		}
+		watch["filterRegistered"] = filterRegistered;
+		watch["lostThresholdSeconds"] = MCSignalWatch::lostThresholdSeconds();
+
+		QJsonArray elements;
+		for (const MCSignalWatch::Status &status : MCSignalWatch::statuses()) {
+			QJsonObject entry;
+			entry["element"] = status.elementName;
+			entry["sourceId"] = status.sourceId;
+			entry["frames"] = static_cast<double>(status.frames);
+			switch (status.state) {
+			case MCSignalWatch::State::Receiving:
+				entry["state"] = "receiving";
+				break;
+			case MCSignalWatch::State::Lost:
+				entry["state"] = "lost";
+				break;
+			default:
+				entry["state"] = "unknown";
+				break;
+			}
+			elements.append(entry);
+		}
+		watch["watched"] = elements;
+
+		root["signalWatch"] = watch;
 	}
 
 	/* --- Settings dialog ------------------------------------------------ */

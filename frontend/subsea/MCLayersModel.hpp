@@ -83,6 +83,10 @@ public:
 		ProgramRole,
 		/* Element only: obs_sceneitem_selected. Kept in step with the preview. */
 		SelectedRole,
+		/* Element only: true when MCSignalWatch has seen frames stop. Drawn by
+		 * the delegate, because a camera that has quietly died is the one thing
+		 * an operator must not have to go looking for. */
+		SignalLostRole,
 	};
 
 	enum class Kind { Canvas, Element };

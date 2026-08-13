@@ -31,6 +31,7 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QScopedValueRollback>
+#include <QTimer>
 
 #include "moc_MCLayersTree.cpp"
 
@@ -75,6 +76,18 @@ MCLayersTree::MCLayersTree(QWidget *parent) : QTreeView(parent)
 	 * frontend event has to. Without this the program marker only moves when
 	 * the dock happens to repaint for another reason. */
 	obs_frontend_add_event_callback(&MCLayersTree::frontendEvent, this);
+
+	/*
+	 * Repaint on a slow timer so a signal-loss marker appears without the
+	 * operator touching anything. Nothing in libobs emits a signal when frames
+	 * merely stop -- that is the whole difficulty of task 2.3 -- so there is no
+	 * event to hang this on. A viewport repaint once a second is invisible next
+	 * to the preview's own rendering.
+	 */
+	auto *health = new QTimer(this);
+	health->setInterval(1000);
+	connect(health, &QTimer::timeout, this, [this]() { viewport()->update(); });
+	health->start();
 }
 
 MCLayersTree::~MCLayersTree()

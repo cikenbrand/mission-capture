@@ -45,6 +45,7 @@
 #include <subsea/MCJobMetadata.hpp>
 #include <subsea/MCJobWizard.hpp>
 #include <subsea/MCRecordIndicator.hpp>
+#include <subsea/MCSignalWatch.hpp>
 
 #include <QVBoxLayout>
 #include <subsea/MCFeatures.hpp>
@@ -1461,6 +1462,10 @@ void OBSBasic::OBSInit()
 	 * route as well as its button. A hidden Start Streaming that still answers
 	 * its hotkey is a field bug: see docs/subsea/ui-audit.md. */
 	MCFeatures::unregisterHiddenHotkeys();
+
+	/* Mission Capture: start watching capture Elements for signal loss. After
+	 * the Job has loaded, so the Elements it contains are picked up. */
+	MCSignalWatch::start();
 
 	/* Mission Capture: --dump-ui-manifest writes the UI description and exits,
 	 * so the harness can diff it against a golden file. Must come after

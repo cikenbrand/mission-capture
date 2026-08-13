@@ -17,6 +17,7 @@
 
 #include "MCLayersModel.hpp"
 #include "MCRecordLock.hpp"
+#include "MCSignalWatch.hpp"
 
 #include <widgets/OBSBasic.hpp>
 
@@ -341,6 +342,18 @@ QVariant MCLayersModel::data(const QModelIndex &index, int role) const
 		return obs_sceneitem_selected(element->item);
 	case SourceIdRole:
 		return QString::fromUtf8(obs_source_get_id(source));
+	case SignalLostRole: {
+		/* Looked up by name rather than cached: the watch is keyed on the
+		 * Element and the tree already rebuilds rows on every relevant
+		 * change, so a cache here would be a second thing to keep in step. */
+		const QString name = QString::fromUtf8(obs_source_get_name(source));
+		for (const MCSignalWatch::Status &status : MCSignalWatch::statuses()) {
+			if (status.elementName == name) {
+				return status.state == MCSignalWatch::State::Lost;
+			}
+		}
+		return false;
+	}
 	default:
 		return {};
 	}
