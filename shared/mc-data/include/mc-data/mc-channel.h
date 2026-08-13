@@ -77,12 +77,12 @@ typedef enum {
  * lifetime rule has to be remembered at each call site.
  */
 typedef struct {
-	double numeric;         /* after scale and offset; NaN if non-numeric */
+	double numeric;             /* after scale and offset; NaN if non-numeric */
 	char text[MC_TEXT_MAX + 1]; /* raw token as received, always populated */
-	uint64_t ts_ns;         /* monotonic clock at receive */
-	uint64_t wall_ns;       /* UTC wall clock at receive, for the sidecar log */
-	mc_quality_t quality;
-	uint64_t seq;           /* monotonic update counter, per channel */
+	uint64_t ts_ns;             /* monotonic clock at receive */
+	uint64_t wall_ns;           /* UTC wall clock at receive, for the sidecar log */
+	mc_quality_t quality;       /* resolved on read, not at publish */
+	uint64_t seq;               /* monotonic update counter, per channel */
 } mc_value_t;
 
 typedef struct {
