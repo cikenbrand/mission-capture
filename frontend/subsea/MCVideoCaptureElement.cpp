@@ -26,6 +26,8 @@
 #include <QApplication>
 #include <QTimer>
 
+#include <utility>
+
 namespace MCVideoCaptureElement {
 
 namespace {
@@ -131,6 +133,47 @@ bool matchCanvasToSource(obs_source_t *source)
 
 	OBSBasic *main = OBSBasic::Get();
 	if (!main) {
+		return false;
+	}
+
+	/*
+	 * Only when this Element is the only thing in the Job.
+	 *
+	 * The header promised this guard and the first implementation did not have
+	 * it, which would have let a second camera of a different size silently
+	 * resize the Canvas out from under the first. With several cameras there is
+	 * no single right answer, and picking one badly is worse than leaving the
+	 * operator to choose.
+	 */
+	int canvases = 0;
+	int elements = 0;
+	auto countScenes = [](void *param, obs_source_t *sceneSource) {
+		auto *counters = static_cast<std::pair<int *, int *> *>(param);
+		if (!sceneSource || obs_source_removed(sceneSource)) {
+			return true;
+		}
+		(*counters->first)++;
+
+		obs_scene_t *scene = obs_scene_from_source(sceneSource);
+		if (scene) {
+			obs_scene_enum_items(
+				scene,
+				[](obs_scene_t *, obs_sceneitem_t *, void *inner) {
+					(*static_cast<int *>(inner))++;
+					return true;
+				},
+				counters->second);
+		}
+		return true;
+	};
+
+	std::pair<int *, int *> counters{&canvases, &elements};
+	OBSCanvasAutoRelease mainCanvas = obs_get_main_canvas();
+	obs_canvas_enum_scenes(mainCanvas, countScenes, &counters);
+
+	if (canvases != 1 || elements != 1) {
+		blog(LOG_DEBUG, "[MCVideoCaptureElement] Not resizing: %d Canvas(es), %d Element(s)", canvases,
+		     elements);
 		return false;
 	}
 

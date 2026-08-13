@@ -291,6 +291,13 @@ if ($null -eq (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
 
             Assert-True ($acquired.Count -ge 1) 'Frames from a live source are detected' 'P2-AC5'
 
+            # OI-48/OI-59: the Canvas sizes itself to the camera rather than to
+            # the monitor. The fixture stream is 1280x720 and the portable
+            # profile starts at the display's resolution, so a resize must
+            # happen and must land on the source's size.
+            $resized = @(Select-String -Path $swLog -Pattern 'Canvas resized .* to 1280x720')
+            Assert-True ($resized.Count -ge 1) 'The Canvas resizes to match the source resolution' 'P2-AC7'
+
             # The assertion task 2.3 turns on, and the one that was unverifiable
             # until this fixture existed.
             Assert-True ($lost.Count -ge 1) 'A source that stops sending is reported as lost' 'P2-AC5'

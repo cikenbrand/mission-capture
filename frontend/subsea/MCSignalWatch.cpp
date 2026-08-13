@@ -17,6 +17,7 @@
 
 #include "MCSignalWatch.hpp"
 #include "MCCaptureProperties.hpp"
+#include "MCVideoCaptureElement.hpp"
 
 #include <OBSApp.hpp>
 #include <qt-wrappers.hpp>
@@ -284,6 +285,19 @@ void sample()
 
 		blog(LOG_WARNING, "[MCSignalWatch] '%s' (%s): %s", watch->elementName.c_str(), watch->sourceId.c_str(),
 		     what);
+
+		/*
+		 * First frames are the moment a camera's resolution is finally
+		 * knowable, so this is where the Canvas gets sized to it (OI-48).
+		 * Hooked here rather than only after Add Element, because a Job loaded
+		 * from disk never goes through that path -- and a camera that returns
+		 * at a different format deserves the same treatment.
+		 */
+		if (is == State::Receiving && watch->filter) {
+			if (obs_source_t *parent = obs_filter_get_parent(watch->filter)) {
+				MCVideoCaptureElement::matchCanvasToSource(parent);
+			}
+		}
 	}
 }
 

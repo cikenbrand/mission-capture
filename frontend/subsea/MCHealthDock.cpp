@@ -23,6 +23,7 @@
 #include <qt-wrappers.hpp>
 #include <widgets/OBSBasic.hpp>
 
+#include <QAction>
 #include <QHeaderView>
 #include <QTableWidget>
 #include <QTimer>
@@ -141,6 +142,14 @@ OBSDock *MCHealthDock::install(OBSBasic *main)
 	dock->setWidget(new MCHealthDock(dock));
 
 	main->addDockWidget(Qt::BottomDockWidgetArea, dock);
+
+	/* Name the View > Docks toggle here. MCFeatures::apply() does that for
+	 * every dock, but it has already run by the time this is installed, and an
+	 * unnamed toggle is invisible to the manifest -- which is exactly the gap
+	 * that let the dock-toggle leak survive task 0.4. */
+	if (QAction *toggle = dock->toggleViewAction()) {
+		toggle->setObjectName(dock->objectName() + QStringLiteral("Toggle"));
+	}
 
 	/* Hidden by default, like the Stats dock it replaces. An operator opens it
 	 * when they want it; the Layers tree already shows a lost camera without

@@ -189,9 +189,18 @@ foreach ($d in @($manifest.docks)) {
         Add-Failure "Dock '$($d.name)' has no named toggle action" 'P1-AC9'
         continue
     }
-    Assert-True ($toggle[0].visible -eq $d.visible) `
-                ("Dock '$($d.name)' toggle matches its visibility " +
-                 "(dock=$($d.visible), toggle=$($toggle[0].visible))") 'P1-AC9'
+    # The rule is about *retirement*, not about being closed. A dock a feature
+    # flag turned off must not be resurrectable from the menu; a dock that is
+    # merely hidden by default -- Health, which the operator opens when they
+    # want it -- must keep its toggle, or there is no way back to it.
+    $retired = @('scenesDock', 'sourcesDock', 'transitionsDock', 'statsDock')
+    if ($retired -contains $d.name) {
+        Assert-True ($toggle[0].visible -eq $false) `
+                    "Retired dock '$($d.name)' cannot be switched back on" 'P1-AC9'
+    } else {
+        Assert-True ($toggle[0].visible -eq $true) `
+                    "Dock '$($d.name)' can be opened from the menu" 'P1-AC9'
+    }
 }
 
 # 3. A disabled settings page must be unreachable from the sidebar. The dialog
