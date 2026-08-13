@@ -19,6 +19,8 @@
 #include "OBSApp.hpp"
 #include "OBSBasicSourceSelect.hpp"
 
+#include <subsea/MCElementTypes.hpp>
+
 #include <utility/ResizeSignaler.hpp>
 #include <utility/ThumbnailManager.hpp>
 #include <utility/ThumbnailView.hpp>
@@ -513,6 +515,13 @@ void OBSBasicSourceSelect::rebuildSourceTypeList()
 			continue;
 		}
 
+		/* Mission Capture: offer only the Element types this product uses.
+		 * Filtered rather than unregistered, so a Job referencing any other
+		 * type still loads. See frontend/subsea/MCElementTypes.hpp. */
+		if (!MCElementTypes::allowed(unversioned_type)) {
+			continue;
+		}
+
 		QListWidgetItem *newItem = new QListWidgetItem(ui->sourceTypeList);
 		newItem->setData(Qt::DisplayRole, name);
 		newItem->setData(kUnversionedIdRole, unversioned_type);
@@ -528,12 +537,17 @@ void OBSBasicSourceSelect::rebuildSourceTypeList()
 		}
 	}
 
-	QListWidgetItem *newItem = new QListWidgetItem(ui->sourceTypeList);
-	newItem->setData(Qt::DisplayRole, Str("Basic.Scene"));
-	newItem->setData(kUnversionedIdRole, "scene");
+	/* Mission Capture: "scene" adds one Canvas as an Element inside another.
+	 * Nesting Canvases is not part of this product's model -- Layers is two
+	 * levels deep by design -- so it is offered only with the escape hatch on. */
+	if (MCElementTypes::allowed("scene")) {
+		QListWidgetItem *newItem = new QListWidgetItem(ui->sourceTypeList);
+		newItem->setData(Qt::DisplayRole, Str("Basic.Scene"));
+		newItem->setData(kUnversionedIdRole, "scene");
 
-	QIcon icon = main->GetSceneIcon();
-	newItem->setIcon(icon);
+		QIcon icon = main->GetSceneIcon();
+		newItem->setIcon(icon);
+	}
 
 	ui->sourceTypeList->sortItems();
 

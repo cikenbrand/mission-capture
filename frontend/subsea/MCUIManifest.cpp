@@ -16,6 +16,7 @@
 ******************************************************************************/
 
 #include "MCUIManifest.hpp"
+#include "MCElementTypes.hpp"
 #include "MCFeatures.hpp"
 #include "MCLayersModel.hpp"
 
@@ -124,21 +125,26 @@ bool write(OBSBasic *main, const std::string &path)
 	}
 	root["menus"] = menus;
 
-	/* --- Element types offered by Add Element -------------------------- */
-	/* Phase 1 task 1.6 restricts these to three. Until that lands this records
-	 * every registered source type, which is exactly the "before" the golden
-	 * file needs. */
+	/* --- Element types -------------------------------------------------- */
+	/* Every registered type is listed, each marked with whether task 1.6's
+	 * filter offers it in Add Element. Recording both halves is deliberate: the
+	 * point of that task is that unoffered types stay *registered*, so a Job
+	 * referencing one still loads. A list of only the offered types could not
+	 * tell the difference between filtered and unregistered. */
 	QJsonArray elementTypes;
-	const char *sourceId = nullptr;
-	for (size_t idx = 0; obs_enum_input_types(idx, &sourceId); idx++) {
-		const uint32_t caps = obs_get_source_output_flags(sourceId);
+	const char *versionedId = nullptr;
+	const char *unversionedId = nullptr;
+	for (size_t idx = 1; obs_enum_input_types2(idx, &versionedId, &unversionedId); idx++) {
+		const uint32_t caps = obs_get_source_output_flags(versionedId);
 		if (caps & OBS_SOURCE_CAP_DISABLED) {
 			continue;
 		}
 
 		QJsonObject entry;
-		entry["id"] = QString::fromUtf8(sourceId);
-		entry["name"] = QString::fromUtf8(obs_source_get_display_name(sourceId));
+		entry["id"] = QString::fromUtf8(versionedId);
+		entry["unversionedId"] = QString::fromUtf8(unversionedId ? unversionedId : versionedId);
+		entry["name"] = QString::fromUtf8(obs_source_get_display_name(versionedId));
+		entry["offered"] = MCElementTypes::allowed(unversionedId ? unversionedId : versionedId);
 		elementTypes.append(entry);
 	}
 	root["elementTypes"] = elementTypes;

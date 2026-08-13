@@ -356,17 +356,53 @@ void MCLayersTree::removeSelected()
 	}
 }
 
+bool MCLayersTree::addUpstreamAction(QMenu &menu, const char *objectName)
+{
+	OBSBasic *main = OBSBasic::Get();
+	if (!main) {
+		return false;
+	}
+
+	QAction *action = main->findChild<QAction *>(QString::fromUtf8(objectName));
+	if (!action) {
+		/* Upstream renamed or removed it. Logged rather than ignored: the menu
+		 * silently losing an entry is exactly the kind of drift that goes
+		 * unnoticed until someone cannot add a camera. */
+		blog(LOG_WARNING, "[MCLayersTree] '%s' not found; that entry is missing from the Layers menu",
+		     objectName);
+		return false;
+	}
+
+	menu.addAction(action);
+	return true;
+}
+
 void MCLayersTree::contextMenuEvent(QContextMenuEvent *event)
 {
 	const QModelIndex index = indexAt(event->pos());
 
 	QMenu menu(this);
 
+	/*
+	 * Add Canvas and Add Element borrow upstream's own QActions, which carry
+	 * the dialogs and the undo entries with them.
+	 *
+	 * They are the only way to add anything now. actionAddSource lives on
+	 * sourcesToolbar, inside the Sources dock that task 1.4 retired, and the
+	 * previous Add Canvas entry here emitted a signal nothing was connected to
+	 * -- so between 1.4 and this task neither operation was reachable at all.
+	 * Neither T0 nor T1 noticed, because both assert what is *hidden* and
+	 * nothing asserted that the remaining surface still works.
+	 */
+	addUpstreamAction(menu, "actionAddScene");
+	addUpstreamAction(menu, "actionAddSource");
+
 	if (!index.isValid()) {
-		menu.addAction(QTStr("AddScene"), this, [this]() { emit canvasActivated(nullptr); });
 		menu.exec(event->globalPos());
 		return;
 	}
+
+	menu.addSeparator();
 
 	const bool element = model_->kindOf(index) == MCLayersModel::Kind::Element;
 
@@ -401,21 +437,9 @@ void MCLayersTree::contextMenuEvent(QContextMenuEvent *event)
 	 * -- the arrangement task 1.4 relies on.
 	 */
 	if (element) {
-		if (OBSBasic *main = OBSBasic::Get()) {
-			QMenu *order = nullptr;
-
-			for (const char *name :
-			     {"actionMoveUp", "actionMoveDown", "actionMoveToTop", "actionMoveToBottom"}) {
-				QAction *action = main->findChild<QAction *>(name);
-				if (!action) {
-					continue;
-				}
-
-				if (!order) {
-					order = menu.addMenu(QTStr("Basic.MainMenu.Edit.Order"));
-				}
-				order->addAction(action);
-			}
+		QMenu *order = menu.addMenu(QTStr("Basic.MainMenu.Edit.Order"));
+		for (const char *name : {"actionMoveUp", "actionMoveDown", "actionMoveToTop", "actionMoveToBottom"}) {
+			addUpstreamAction(*order, name);
 		}
 	}
 

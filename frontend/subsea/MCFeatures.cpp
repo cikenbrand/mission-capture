@@ -186,6 +186,13 @@ const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{
 	 false,
 	 "Order submenu under Edit; the same actions live in the Layers context menu",
 	 {"orderMenu"}},
+	/* No objectNames: apply() has nothing to hide for this one. MCElementTypes
+	 * reads it directly to decide what the Add Element list offers. */
+	{Feature::AllSourceTypes,
+	 "AllSourceTypes",
+	 false,
+	 "Offer every OBS source type when adding an Element, not just the three this product uses",
+	 {}},
 }};
 
 /* Resolved state, and whether it came from features.ini or the compiled default. */

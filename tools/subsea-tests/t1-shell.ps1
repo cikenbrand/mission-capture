@@ -224,6 +224,73 @@ foreach ($kept in @('actionMoveUp', 'actionMoveDown', 'actionMoveToTop', 'action
     Assert-True ($a.Count -eq 1) "Order action '$kept' survives the move to Layers" 'P1-AC9'
 }
 
+# --- P1-AC8: task 1.6 -- the Add Element list is restricted, not gutted ------
+$types = @($manifest.elementTypes)
+Assert-True ($types.Count -gt 0) "Manifest lists $($types.Count) registered Element types" 'P1-AC8'
+
+if ($types.Count) {
+    $offered = @($types | Where-Object { $_.offered })
+
+    # The distinction the whole task rests on: unoffered types stay REGISTERED,
+    # so a Job referencing one still loads. If these were equal we would have
+    # unregistered them, which would break exactly that.
+    Assert-True ($offered.Count -lt $types.Count) `
+                ("Unoffered types stay registered ($($offered.Count) offered of $($types.Count) registered)") 'P1-AC8'
+
+    # Video Capture Device is the one of the three that exists today; RTSP
+    # arrives in 2.4 and Overlay in phase 4.
+    $dshow = @($types | Where-Object { $_.unversionedId -eq 'dshow_input' })
+    Assert-True ($dshow.Count -eq 1 -and $dshow[0].offered) 'Video Capture Device is offered' 'P1-AC8'
+
+    # Everything OBS offers that this product does not.
+    foreach ($blocked in @('ffmpeg_source', 'image_source', 'color_source', 'slideshow',
+                           'text_gdiplus', 'text_ft2_source', 'monitor_capture',
+                           'window_capture', 'game_capture', 'wasapi_input_capture',
+                           'wasapi_output_capture')) {
+        $t = @($types | Where-Object { $_.unversionedId -eq $blocked })
+        if ($t.Count -eq 0) { continue }   # not built in this configuration
+        Assert-True (-not $t[0].offered) "'$blocked' is registered but not offered" 'P1-AC8'
+    }
+}
+
+# The Layers context menu borrows these two from upstream. They are the only
+# route to adding anything now that the Sources dock is retired, so a rename
+# upstream must fail loudly here rather than silently emptying the menu.
+foreach ($borrowed in @('actionAddScene', 'actionAddSource',
+                        'actionMoveUp', 'actionMoveDown', 'actionMoveToTop', 'actionMoveToBottom')) {
+    $a = @(@($manifest.actions) + @($manifest.hiddenActions) | Where-Object { $_.name -eq $borrowed })
+    Assert-True ($a.Count -eq 1) "Layers menu can still borrow '$borrowed' from upstream" 'P1-AC8'
+}
+
+# --- P1-AC8: AllSourceTypes is a real escape hatch ---------------------------
+# Same shape as T0's AdvancedAudio check: prove the flag does something, so the
+# restriction can never become a dead end on a vessel.
+$featuresIni = Join-Path (Get-AppConfigDir) 'features.ini'
+if ((Test-Path $featuresIni) -and $types.Count) {
+    $before = @($types | Where-Object { $_.offered }).Count
+
+    (Get-Content $featuresIni) -replace '^AllSourceTypes=false', 'AllSourceTypes=true' |
+        Set-Content -Encoding utf8 $featuresIni
+
+    $code = Invoke-App -AppArgs @('--dump-ui-manifest', '../../ui-all-types.json') -TimeoutSec 120
+    Assert-True ($code -eq 0) 'Manifest dump with AllSourceTypes on exited cleanly' 'P1-AC8'
+
+    $allPath = Join-Path (Get-RunDir) 'ui-all-types.json'
+    if (Test-Path $allPath) {
+        $allTypes = @((Get-Content $allPath -Raw | ConvertFrom-Json).elementTypes)
+        $after = @($allTypes | Where-Object { $_.offered }).Count
+        Assert-True ($after -gt $before) `
+                    "AllSourceTypes restores the full list ($before -> $after offered)" 'P1-AC8'
+        Assert-True ($after -eq $allTypes.Count) 'Every registered type is offered with the flag on' 'P1-AC8'
+    } else {
+        Add-Failure 'No manifest produced with AllSourceTypes on' 'P1-AC8'
+    }
+
+    # Put it back, so a later suite in the same workspace sees the default.
+    (Get-Content $featuresIni) -replace '^AllSourceTypes=true', 'AllSourceTypes=false' |
+        Set-Content -Encoding utf8 $featuresIni
+}
+
 # --- English is the only language offered ------------------------------------
 $localeIndex = Join-Path (Get-RunDir) 'data\obs-studio\locale.ini'
 if (Test-Path $localeIndex) {

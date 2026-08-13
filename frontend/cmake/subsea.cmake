@@ -7,6 +7,8 @@ target_sources(
   obs-studio
   PRIVATE
     subsea/MCBranding.hpp
+    subsea/MCElementTypes.cpp
+    subsea/MCElementTypes.hpp
     subsea/MCFeatures.cpp
     subsea/MCFeatures.hpp
     subsea/MCLayersDelegate.cpp

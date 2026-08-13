@@ -110,6 +110,10 @@ enum class Feature {
 	StreamStatusBar,
 	EditMenuOrder,
 
+	/* Task 1.6. Unlike every other flag, this one gates behaviour rather than
+	 * a widget: it is read by MCElementTypes, not by apply(). */
+	AllSourceTypes,
+
 	Count_
 };
 

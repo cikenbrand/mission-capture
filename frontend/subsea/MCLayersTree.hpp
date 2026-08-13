@@ -23,6 +23,7 @@
 #include <QTreeView>
 
 class MCLayersModel;
+class QMenu;
 
 /*
  * The Layers panel: one tree showing every Canvas and the Elements inside it.
@@ -82,6 +83,11 @@ private:
 	/* Returns true if the press landed on a toggle and was consumed. */
 	bool handleToggleClick(const QModelIndex &index, const QPoint &pos);
 	void removeSelected();
+
+	/* Adds one of OBSBasic's own QActions to a context menu, so the entry keeps
+	 * upstream's dialog and undo behaviour instead of reimplementing it.
+	 * Returns false, and logs, if upstream no longer has that objectName. */
+	static bool addUpstreamAction(QMenu &menu, const char *objectName);
 
 	MCLayersModel *model_ = nullptr;
 	bool settingSelection_ = false;
