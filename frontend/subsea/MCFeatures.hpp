@@ -123,6 +123,9 @@ enum class Feature {
 	ProfileMenu,
 	SceneCollectionMenu,
 
+	/* Task 1.9a, behavioural: read by MCRecordLock. */
+	LockLayersWhileRecording,
+
 	Count_
 };
 

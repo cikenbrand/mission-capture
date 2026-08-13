@@ -22,6 +22,7 @@
 #include "MCFeatures.hpp"
 #include "MCJobMetadata.hpp"
 #include "MCLayersModel.hpp"
+#include "MCRecordLock.hpp"
 
 #include <OBSApp.hpp>
 #include <settings/OBSBasicSettings.hpp>
@@ -270,6 +271,28 @@ bool write(OBSBasic *main, const std::string &path)
 		entry["empty"] = job.isEmpty();
 
 		root["jobMetadata"] = entry;
+	}
+
+	/* --- Recording safety (task 1.9a) ------------------------------------- */
+	{
+		QJsonObject safety;
+
+		/* The indicator is a widget like any other, but its visibility is the
+		 * assertion that matters: absent when idle, not merely grey. */
+		auto *indicator = main->findChild<QWidget *>(QStringLiteral("recordIndicator"));
+		safety["indicatorPresent"] = indicator != nullptr;
+		safety["indicatorVisible"] = indicator && indicator->isVisible();
+
+		safety["recording"] = MCRecordLock::recording();
+		safety["editingLocked"] = MCRecordLock::locked();
+		safety["overridden"] = MCRecordLock::overridden();
+
+		config_t *userConfig = App()->GetUserConfig();
+		safety["warnBeforeStopping"] = config_get_bool(userConfig, "BasicWindow", "WarnBeforeStoppingRecord");
+		safety["warnAfterSeconds"] =
+			static_cast<int>(config_get_int(userConfig, "BasicWindow", "WarnBeforeStoppingRecordAfter"));
+
+		root["recordingSafety"] = safety;
 	}
 
 	/* --- Capture devices -------------------------------------------------- */

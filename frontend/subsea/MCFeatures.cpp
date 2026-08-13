@@ -216,6 +216,14 @@ const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{
 	 true,
 	 "Job menu; still the only way to switch between existing Jobs",
 	 {"sceneCollectionMenu"}},
+
+	/* On by default. Turning it off restores upstream behaviour, where a
+	 * Layers edit mid-recording silently changes the footage. */
+	{Feature::LockLayersWhileRecording,
+	 "LockLayersWhileRecording",
+	 true,
+	 "Refuse Layers edits while recording, unless deliberately unlocked",
+	 {}},
 }};
 
 /* Resolved state, and whether it came from features.ini or the compiled default. */

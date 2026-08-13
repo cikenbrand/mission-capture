@@ -43,6 +43,9 @@
 #include <subsea/MCDefaults.hpp>
 #include <subsea/MCJobMetadata.hpp>
 #include <subsea/MCJobWizard.hpp>
+#include <subsea/MCRecordIndicator.hpp>
+
+#include <QVBoxLayout>
 #include <subsea/MCFeatures.hpp>
 #include <subsea/MCLayersTree.hpp>
 #include <subsea/MCUIManifest.hpp>
@@ -311,6 +314,17 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 
 	/* Add controls dock */
 	OBSBasicControls *controls = new OBSBasicControls(this);
+
+	/* Mission Capture: the record indicator sits above the buttons, where the
+	 * eye already goes to check recording state. Inserted into the existing
+	 * layout rather than added to OBSBasicControls.ui, so that form stays
+	 * upstream's. See frontend/subsea/MCRecordIndicator.hpp. */
+	if (auto *controlsLayout = controls->findChild<QVBoxLayout *>(QStringLiteral("buttonsVLayout"))) {
+		controlsLayout->insertWidget(0, new MCRecordIndicator(controls));
+	} else {
+		blog(LOG_WARNING, "[MCRecordIndicator] buttonsVLayout not found; the record indicator is missing");
+	}
+
 	controlsDock = new OBSDock(this);
 	controlsDock->setObjectName(QString::fromUtf8("controlsDock"));
 	controlsDock->setWindowTitle(QTStr("Basic.Main.Controls"));

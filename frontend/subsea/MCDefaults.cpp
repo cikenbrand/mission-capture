@@ -157,6 +157,22 @@ void applyEncoders(config_t *config)
 	blog(LOG_INFO, "[MCDefaults] Default recording encoder: %s (%s)", encoder, why);
 }
 
+void applyUserDefaults(config_t *userConfig)
+{
+	if (!userConfig) {
+		return;
+	}
+
+	/*
+	 * Confirm before stopping a recording. Upstream leaves this unset, which
+	 * means off -- so a mis-click on the record button ends a dive with no
+	 * question asked. On here, but only past the threshold below, so a short
+	 * test recording still stops in one click.
+	 */
+	config_set_default_bool(userConfig, "BasicWindow", "WarnBeforeStoppingRecord", true);
+	config_set_default_int(userConfig, "BasicWindow", "WarnBeforeStoppingRecordAfter", 60);
+}
+
 std::string expandTokens(const char *format)
 {
 	if (!format) {

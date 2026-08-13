@@ -392,6 +392,40 @@ if (Test-Path $metaManifest) {
     Add-Failure 'No manifest produced for the job-meta fixture' 'P1-AC11'
 }
 
+# --- P1-AC12: task 1.9a -- recording-safety UI -------------------------------
+$rs = $manifest.recordingSafety
+Assert-True ($null -ne $rs) 'Manifest records the recording-safety state' 'P1-AC12'
+
+if ($rs) {
+    # The indicator must exist but be *absent* when idle, not merely grey. A
+    # badge that is always there and only changes colour is one people stop
+    # reading, which defeats the point of having it.
+    Assert-True ($rs.indicatorPresent -eq $true) 'Record indicator is installed in the controls dock' 'P1-AC12'
+    Assert-True ($rs.indicatorVisible -eq $false) 'Record indicator is hidden while idle' 'P1-AC12'
+
+    # Upstream leaves this unset, which means a mis-click ends a dive silently.
+    Assert-True ($rs.warnBeforeStopping -eq $true) 'Confirm-before-stopping is on by default' 'P1-AC12'
+    Assert-True ($rs.warnAfterSeconds -eq 60) `
+                "Confirmation threshold defaults to 60s (got $($rs.warnAfterSeconds))" 'P1-AC12'
+
+    # Nothing is locked when nothing is recording, and no override is left over
+    # from a previous session.
+    Assert-True ($rs.recording -eq $false) 'Not recording in a fresh session' 'P1-AC12'
+    Assert-True ($rs.editingLocked -eq $false) 'Layers editing is unlocked while idle' 'P1-AC12'
+    Assert-True ($rs.overridden -eq $false) 'The editing override does not persist across sessions' 'P1-AC12'
+}
+
+# The lock is a flag, so it can be turned off in the field.
+$lockFlag = @($manifest.features | Where-Object { $_.key -eq 'LockLayersWhileRecording' })
+Assert-True ($lockFlag.Count -eq 1 -and $lockFlag[0].enabled -eq $true) `
+            'Layers lock-while-recording is on by default' 'P1-AC12'
+
+# NOT ASSERTED HERE: the behaviour while a recording is actually running --
+# indicator visible, edits refused, override releasing them. That needs a live
+# recording, which an unattended manifest dump cannot produce. Covered by
+# OI-55, and 1.9b forces the issue: testing a disk-full stop needs exactly the
+# same harness.
+
 # --- English is the only language offered ------------------------------------
 $localeIndex = Join-Path (Get-RunDir) 'data\obs-studio\locale.ini'
 if (Test-Path $localeIndex) {

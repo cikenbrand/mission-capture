@@ -19,6 +19,8 @@
 
 #include "OBSBasic.hpp"
 
+#include <subsea/MCRecordIndicator.hpp>
+
 #include <components/UIValidation.hpp>
 #include <dialogs/OBSRemux.hpp>
 
@@ -258,6 +260,24 @@ void OBSBasic::RecordActionTriggered()
 {
 	if (outputHandler->RecordingActive()) {
 		bool confirm = config_get_bool(App()->GetUserConfig(), "BasicWindow", "WarnBeforeStoppingRecord");
+
+		/*
+		 * Mission Capture: only ask once the recording has been running long
+		 * enough to be worth protecting.
+		 *
+		 * Upstream's flag is all-or-nothing, and both settings are wrong here.
+		 * Off, a mis-click ends a three-hour dive silently. On, the operator
+		 * confirms a dialog every time they stop a ten-second test, which is
+		 * exactly how people learn to dismiss dialogs without reading them --
+		 * and then dismiss the one that mattered.
+		 *
+		 * The threshold is in seconds under BasicWindow/WarnBeforeStoppingRecordAfter.
+		 */
+		if (confirm) {
+			const int64_t after =
+				config_get_int(App()->GetUserConfig(), "BasicWindow", "WarnBeforeStoppingRecordAfter");
+			confirm = MCRecordIndicator::elapsedSeconds() >= after;
+		}
 
 		if (confirm && isVisible()) {
 			QMessageBox::StandardButton button = OBSMessageBox::question(

@@ -1315,6 +1315,10 @@ bool OBSApp::OBSInit()
 	 * See frontend/subsea/MCFeatures.hpp. */
 	MCFeatures::load();
 
+	/* Mission Capture: window-level defaults, which live in the user config
+	 * rather than a Rig. See frontend/subsea/MCDefaults.hpp. */
+	MCDefaults::applyUserDefaults(GetUserConfig());
+
 	thumbnailManager = new ThumbnailManager(this);
 
 	mainWindow = new OBSBasic();

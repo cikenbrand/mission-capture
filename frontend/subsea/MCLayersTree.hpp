@@ -82,6 +82,10 @@ private:
 
 	/* Returns true if the press landed on a toggle and was consumed. */
 	bool handleToggleClick(const QModelIndex &index, const QPoint &pos);
+
+	/* True if editing is locked by a running recording, having said so in the
+	 * status bar. Callers should do nothing further when it returns true. */
+	bool refuseIfLocked();
 	void removeSelected();
 
 	/* Adds one of OBSBasic's own QActions to a context menu, so the entry keeps

@@ -18,6 +18,7 @@
 #include "MCLayersTree.hpp"
 #include "MCLayersDelegate.hpp"
 #include "MCLayersModel.hpp"
+#include "MCRecordLock.hpp"
 
 #include <OBSApp.hpp>
 #include <widgets/OBSBasic.hpp>
@@ -254,15 +255,36 @@ bool MCLayersTree::handleToggleClick(const QModelIndex &index, const QPoint &pos
 	initViewItemOption(&option);
 	option.rect = visualRect(index);
 
-	if (MCLayersDelegate::visibilityRect(option, index).contains(pos)) {
+	const bool onVisibility = MCLayersDelegate::visibilityRect(option, index).contains(pos);
+	const bool onLock = MCLayersDelegate::lockRect(option, index).contains(pos);
+
+	if (!onVisibility && !onLock) {
+		return false;
+	}
+
+	/* Consume the click either way. Refusing but letting it fall through would
+	 * start a drag or move the selection, which is not what "nothing happened"
+	 * should mean. */
+	if (refuseIfLocked()) {
+		return true;
+	}
+
+	if (onVisibility) {
 		model_->toggleVisible(index);
-		return true;
-	}
-	if (MCLayersDelegate::lockRect(option, index).contains(pos)) {
+	} else {
 		model_->toggleLocked(index);
-		return true;
 	}
-	return false;
+	return true;
+}
+
+bool MCLayersTree::refuseIfLocked()
+{
+	if (!MCRecordLock::locked()) {
+		return false;
+	}
+
+	MCRecordLock::explainRefusal(this);
+	return true;
 }
 
 void MCLayersTree::mousePressEvent(QMouseEvent *event)
@@ -313,14 +335,18 @@ void MCLayersTree::keyPressEvent(QKeyEvent *event)
 	case Qt::Key_Space: {
 		const QModelIndex index = currentIndex();
 		if (index.isValid() && model_->kindOf(index) == MCLayersModel::Kind::Element) {
-			model_->toggleVisible(index);
+			if (!refuseIfLocked()) {
+				model_->toggleVisible(index);
+			}
 			event->accept();
 			return;
 		}
 		break;
 	}
 	case Qt::Key_Delete:
-		removeSelected();
+		if (!refuseIfLocked()) {
+			removeSelected();
+		}
 		event->accept();
 		return;
 	default:
@@ -397,12 +423,32 @@ void MCLayersTree::contextMenuEvent(QContextMenuEvent *event)
 	addUpstreamAction(menu, "actionAddScene");
 	addUpstreamAction(menu, "actionAddSource");
 
+	/*
+	 * The lock override. Offered only while recording, because the rest of the
+	 * time it would be a checkbox with nothing to do -- and it is the one entry
+	 * that stays enabled when everything below is greyed out, since it is how
+	 * the operator gets the rest back.
+	 */
+	if (MCRecordLock::recording()) {
+		menu.addSeparator();
+		QAction *unlock = menu.addAction(QTStr("RecordLock.AllowEditing"));
+		unlock->setObjectName(QStringLiteral("actionAllowEditingWhileRecording"));
+		unlock->setCheckable(true);
+		unlock->setChecked(MCRecordLock::overridden());
+		connect(unlock, &QAction::triggered, this, [](bool on) { MCRecordLock::setOverridden(on); });
+	}
+
 	if (!index.isValid()) {
 		menu.exec(event->globalPos());
 		return;
 	}
 
 	menu.addSeparator();
+
+	/* Everything past this point edits the Job, so it all follows the lock.
+	 * Greyed rather than hidden: an operator should see that the actions exist
+	 * and are withheld, not wonder where they went. */
+	const bool editsLocked = MCRecordLock::locked();
 
 	const bool element = model_->kindOf(index) == MCLayersModel::Kind::Element;
 
@@ -413,17 +459,20 @@ void MCLayersTree::contextMenuEvent(QContextMenuEvent *event)
 		QAction *visAction = menu.addAction(QTStr("Basic.Main.Sources.Visibility"));
 		visAction->setCheckable(true);
 		visAction->setChecked(visible);
+		visAction->setEnabled(!editsLocked);
 		connect(visAction, &QAction::triggered, this, [this, index]() { model_->toggleVisible(index); });
 
 		QAction *lockAction = menu.addAction(QTStr("Basic.Main.Sources.Lock"));
 		lockAction->setCheckable(true);
 		lockAction->setChecked(locked);
+		lockAction->setEnabled(!editsLocked);
 		connect(lockAction, &QAction::triggered, this, [this, index]() { model_->toggleLocked(index); });
 
 		menu.addSeparator();
 	}
 
-	menu.addAction(QTStr("Rename"), this, [this, index]() { edit(index); });
+	QAction *renameAction = menu.addAction(QTStr("Rename"), this, [this, index]() { edit(index); });
+	renameAction->setEnabled(!editsLocked);
 
 	/*
 	 * Ordering belongs with the tree that shows the order, not under Edit --
@@ -438,13 +487,18 @@ void MCLayersTree::contextMenuEvent(QContextMenuEvent *event)
 	 */
 	if (element) {
 		QMenu *order = menu.addMenu(QTStr("Basic.MainMenu.Edit.Order"));
+		/* The submenu, not the borrowed actions: those belong to OBSBasic and
+		 * are shared with the Edit menu, so disabling them here would disable
+		 * them everywhere and leave them that way. */
+		order->setEnabled(!editsLocked);
 		for (const char *name : {"actionMoveUp", "actionMoveDown", "actionMoveToTop", "actionMoveToBottom"}) {
 			addUpstreamAction(*order, name);
 		}
 	}
 
 	menu.addSeparator();
-	menu.addAction(QTStr("Remove"), this, [this]() { removeSelected(); });
+	QAction *removeAction = menu.addAction(QTStr("Remove"), this, [this]() { removeSelected(); });
+	removeAction->setEnabled(!editsLocked);
 
 	menu.exec(event->globalPos());
 }

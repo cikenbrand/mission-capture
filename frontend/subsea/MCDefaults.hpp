@@ -65,6 +65,13 @@ void apply(config_t *config);
 void applyEncoders(config_t *config);
 
 /*
+ * Defaults that live in the *user* config rather than a Rig -- window
+ * behaviour, not encoder settings. Call from OBSApp once the user config is
+ * open, and before OBSBasic reads any of them.
+ */
+void applyUserDefaults(config_t *userConfig);
+
+/*
  * Expands Mission Capture's own filename tokens.
  *
  * %JOB%    -- the current Job (scene collection)

@@ -25,6 +25,10 @@ target_sources(
     subsea/MCLayersModel.hpp
     subsea/MCLayersTree.cpp
     subsea/MCLayersTree.hpp
+    subsea/MCRecordIndicator.cpp
+    subsea/MCRecordIndicator.hpp
+    subsea/MCRecordLock.cpp
+    subsea/MCRecordLock.hpp
     subsea/MCUIManifest.cpp
     subsea/MCUIManifest.hpp
 )

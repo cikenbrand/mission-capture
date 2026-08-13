@@ -16,6 +16,7 @@
 ******************************************************************************/
 
 #include "MCLayersModel.hpp"
+#include "MCRecordLock.hpp"
 
 #include <widgets/OBSBasic.hpp>
 
@@ -448,6 +449,15 @@ bool MCLayersModel::canDropMimeData(const QMimeData *data, Qt::DropAction, int, 
 	if (!data || !data->hasFormat(mimeTypes().first())) {
 		return false;
 	}
+
+	/* Reordering changes what occludes what in a running recording. Refused at
+	 * the model, not the view, so the drop indicator never appears -- a drag
+	 * that looks like it will work and then does nothing is worse than one that
+	 * visibly cannot. */
+	if (MCRecordLock::locked()) {
+		return false;
+	}
+
 	/* Elements may only land inside a Canvas, never at the top level. */
 	return parent.isValid();
 }
