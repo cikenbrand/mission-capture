@@ -32,6 +32,13 @@ OBSAbout::OBSAbout(QWidget *parent) : QDialog(parent), ui(new Ui::OBSAbout)
 
 	ui->version->setText(ver + bitness);
 
+	/* Mission Capture: OBSAbout.ui hardcodes "OBS Studio" as the heading with
+	 * notr="true", so it survives the locale rename that covers the rest of the
+	 * UI. Set here rather than in the .ui to keep the change on the file that
+	 * already carries our edits. Attribution to the OBS Project is not being
+	 * removed -- it is directly below, in About.Info and the upstream link. */
+	ui->name->setText(MC_PRODUCT_NAME);
+
 	/* Mission Capture: the upstream donate / get-involved links point at the OBS
 	 * Project. Soliciting contributions to them from our product would be
 	 * misleading, so they are replaced with the GPLv2 source-availability notice

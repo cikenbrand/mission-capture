@@ -168,6 +168,62 @@ if (Test-Path $layersManifest) {
     Add-Failure 'No layers manifest produced' 'P1-AC1'
 }
 
+# --- P1-AC9: task 1.5 -- a hidden feature has no way back --------------------
+# The audit (docs/subsea/ui-audit.md) found four routes back to a hidden
+# feature. Each is asserted here, because each was invisible to the checks that
+# existed before it: 0.4 could report "30 hidden / 0 missing" with all four open.
+
+# 1. Hotkeys must not outlive the UI they belong to. Was OI-23.
+$leaks = @($manifest.hotkeys | Where-Object { $_.name -match 'ReplayBuffer|Streaming|Transition' })
+Assert-True ($leaks.Count -eq 0) `
+            ("No hotkeys registered for hidden features" +
+             $(if ($leaks.Count) { ": " + (($leaks | ForEach-Object { $_.name }) -join ', ') } else { '' })) 'P1-AC9'
+
+# 2. A hidden dock must not keep a live View > Docks toggle. The toggle actions
+#    are created by Qt and were nameless until 1.5 named them -- which is why
+#    this leak survived 0.4 unnoticed.
+foreach ($d in @($manifest.docks)) {
+    $toggle = @(@($manifest.actions) + @($manifest.hiddenActions) |
+                Where-Object { $_.name -eq ($d.name + 'Toggle') })
+    if ($toggle.Count -ne 1) {
+        Add-Failure "Dock '$($d.name)' has no named toggle action" 'P1-AC9'
+        continue
+    }
+    Assert-True ($toggle[0].visible -eq $d.visible) `
+                ("Dock '$($d.name)' toggle matches its visibility " +
+                 "(dock=$($d.visible), toggle=$($toggle[0].visible))") 'P1-AC9'
+}
+
+# 3. A disabled settings page must be unreachable from the sidebar. The dialog
+#    is not a child of the main window, so nothing saw this before 1.5 taught
+#    the manifest to build it.
+$pages = @($manifest.settingsPages)
+Assert-True ($pages.Count -gt 0) "Manifest records $($pages.Count) settings pages" 'P1-AC9'
+if ($pages.Count) {
+    $stream = @($pages | Where-Object { $_.page -eq 'streamPage' })
+    Assert-True ($stream.Count -eq 1 -and -not $stream[0].visible) `
+                'Stream settings page is unreachable while StreamingUI is off' 'P1-AC9'
+
+    # Guard against over-hiding: the pages we keep must still be reachable.
+    foreach ($keep in @('generalPage', 'audioPage', 'videoPage', 'hotkeyPage')) {
+        $pg = @($pages | Where-Object { $_.page -eq $keep })
+        Assert-True ($pg.Count -eq 1 -and $pg[0].visible) "Settings page '$keep' is still reachable" 'P1-AC9'
+    }
+}
+
+# 4. A menu emptied of its items must not open onto nothing.
+$hiddenMenus = @($manifest.menus | Where-Object { -not $_.visible } | ForEach-Object { $_.name })
+foreach ($gone in @('orderMenu', 'menuCrashLogs', 'sceneListModeMenu')) {
+    Assert-True ($hiddenMenus -contains $gone) "Menu '$gone' is hidden" 'P1-AC9'
+}
+
+# The Order actions moved to the Layers context menu rather than being removed,
+# so they must stay visible -- their shortcuts are how keyboard users reorder.
+foreach ($kept in @('actionMoveUp', 'actionMoveDown', 'actionMoveToTop', 'actionMoveToBottom')) {
+    $a = @($manifest.actions | Where-Object { $_.name -eq $kept })
+    Assert-True ($a.Count -eq 1) "Order action '$kept' survives the move to Layers" 'P1-AC9'
+}
+
 # --- English is the only language offered ------------------------------------
 $localeIndex = Join-Path (Get-RunDir) 'data\obs-studio\locale.ini'
 if (Test-Path $localeIndex) {

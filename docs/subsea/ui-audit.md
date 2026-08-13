@@ -1,9 +1,19 @@
 # UI surface audit
 
 **Task:** [1.5](phase-1-shell-and-layers.md#15--ui-surface-audit-and-hiding).
-**Status:** **reviewed and accepted 2026-08-13.** No corrections were raised against the
-dispositions below; the one open call — Profile and Scene Collection — was decided in favour of
-keeping both visible until 1.8. Implementation follows the plan at the foot of this document.
+**Status:** **reviewed, accepted and implemented 2026-08-13.** No corrections were raised against
+the dispositions below; the one open call — Profile and Scene Collection — was decided in favour of
+keeping both visible until 1.8. All eight implementation steps at the foot of this document are
+done, and T0 and T1 assert them.
+
+Two corrections to what this document originally claimed, both found while implementing:
+
+- The About dialog *did* already carry the GPLv2 source offer and the upstream attribution from
+  task 0.3. What was actually wrong was narrower: `OBSAbout.ui` hardcodes `OBS Studio` as the
+  heading with `notr="true"`, so it survived the locale rename. Fixed in code.
+- `menuCrashLogs` had been listed under the `LogUpload` flag since 0.4 and was never being hidden,
+  for the same reason `orderMenu` would not hide — see OI-44. That makes four pre-existing leaks
+  this task closed, not three.
 
 Every menu action, dock, toolbar button, status-bar field and settings page in the application,
 classified **Keep / Hide / Rework**. The phase doc says these dispositions are "to be confirmed with
@@ -179,7 +189,7 @@ references a moved file is a real failure and needs a visible answer.
 | `actionHelpPortal`, `actionWebsite`, `actionDiscord` | **Hide** — already flagged | OBS Project destinations. |
 | `actionCheckForUpdates`, `actionReleaseNotes`, `actionRepair`, `actionRestartSafe` | **Hide** — already flagged | Points at OBS's updater. `actionRestartSafe` (safe mode, third-party plugins off) is worth **reworking back in** later — it is a genuine recovery tool, it just needs to stop being an OBS update path. |
 | `actionShowWhatsNew` | **Hide** | Fetches OBS release notes over the network. |
-| `actionShowAbout` | **Rework → 1.5** | Must state Mission Capture, Cyberian Resources, the GPLv2 offer and OBS attribution. `THIRD_PARTY_NOTICES.md` already has the text; the dialog does not show it. **Licence compliance, not polish.** |
+| `actionShowAbout` | **Rework → 1.5** — done | Task 0.3 had already added the GPLv2 source offer, the upstream link and the removal of the patron fetch. The remaining fault was the heading: `OBSAbout.ui` hardcodes `OBS Studio` with `notr="true"`, so the locale rename never touched it. Now set from `MC_PRODUCT_NAME`; OBS attribution stays, directly below, in `About.Info`. |
 | `actionShowMacPermissions` | **Hide** | macOS-only; dead on Windows. |
 
 ---
@@ -297,6 +307,12 @@ Extending `MCFeatures::Feature`, all default off unless noted:
 8. Regenerate the manifest; extend T1 to assert the new hidden set and the empty hotkey leak list
 
 Items 3 and 7 are the ones with consequences beyond tidiness. The rest is surface.
+
+**All eight are done.** Final state, from a fresh manifest: 24 registered hotkeys against 30 before
+and none leaked, 39 objects hidden with 0 unfound, 4 dock toggles suppressed and 3 kept, the Stream
+settings row unreachable while the four Keep pages stay reachable, and three menus collapsed
+(`orderMenu`, `menuCrashLogs`, `sceneListModeMenu`). T1 asserts every one of those, including the
+negative cases — a toggle must match its dock either way, and the Order actions must survive.
 
 ---
 

@@ -178,6 +178,14 @@ const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{
 	 false,
 	 "Streaming fields in the status bar: uptime, and the stream delay buffer",
 	 {"streamFrame", "delayFrame"}},
+	/* The submenu entry only. The actions themselves stay visible and keep
+	 * their shortcuts -- they moved to the Layers context menu, which is where
+	 * the order they act on is actually shown. */
+	{Feature::EditMenuOrder,
+	 "EditMenuOrder",
+	 false,
+	 "Order submenu under Edit; the same actions live in the Layers context menu",
+	 {"orderMenu"}},
 }};
 
 /* Resolved state, and whether it came from features.ini or the compiled default. */
@@ -318,7 +326,16 @@ HideResult hideDisabledObjects(QObject *root, Scope scope)
 			}
 
 			if (QWidget *widget = root->findChild<QWidget *>(objectName)) {
-				widget->setVisible(false);
+				/* A QMenu is a QWidget, but hiding it does nothing useful:
+				 * the popup is hidden anyway until it is opened, and what
+				 * shows the entry in the parent menu is its menuAction. This
+				 * caught menuCrashLogs, which had been listed under LogUpload
+				 * since task 0.4 and was never actually being hidden. */
+				if (auto *menu = qobject_cast<QMenu *>(widget); menu && menu->menuAction()) {
+					menu->menuAction()->setVisible(false);
+				} else {
+					widget->setVisible(false);
+				}
 				result.hidden++;
 				continue;
 			}

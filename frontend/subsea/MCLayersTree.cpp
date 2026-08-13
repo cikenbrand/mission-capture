@@ -389,8 +389,38 @@ void MCLayersTree::contextMenuEvent(QContextMenuEvent *event)
 
 	menu.addAction(QTStr("Rename"), this, [this, index]() { edit(index); });
 
-	/* Remove is intentionally absent until 1.4 routes it through OBSBasic's
-	 * undo stack -- see removeSelected(). */
+	/*
+	 * Ordering belongs with the tree that shows the order, not under Edit --
+	 * see docs/subsea/ui-audit.md. Upstream's own QActions are borrowed rather
+	 * than reimplemented, so the move goes through OBSBasic's undo stack and
+	 * behaves identically to the menu it came from.
+	 *
+	 * They read the selection through GetCurrentSceneItem(), which resolves via
+	 * the retired Sources dock. That still works because selecting here calls
+	 * obs_sceneitem_select(), and the dock follows the same libobs signal we do
+	 * -- the arrangement task 1.4 relies on.
+	 */
+	if (element) {
+		if (OBSBasic *main = OBSBasic::Get()) {
+			QMenu *order = nullptr;
+
+			for (const char *name :
+			     {"actionMoveUp", "actionMoveDown", "actionMoveToTop", "actionMoveToBottom"}) {
+				QAction *action = main->findChild<QAction *>(name);
+				if (!action) {
+					continue;
+				}
+
+				if (!order) {
+					order = menu.addMenu(QTStr("Basic.MainMenu.Edit.Order"));
+				}
+				order->addAction(action);
+			}
+		}
+	}
+
+	menu.addSeparator();
+	menu.addAction(QTStr("Remove"), this, [this]() { removeSelected(); });
 
 	menu.exec(event->globalPos());
 }

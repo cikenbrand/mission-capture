@@ -108,6 +108,7 @@ enum class Feature {
 	PluginManager,
 	StreamSettingsPage,
 	StreamStatusBar,
+	EditMenuOrder,
 
 	Count_
 };
