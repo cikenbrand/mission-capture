@@ -56,3 +56,4 @@ add_obs_cmocka_test(test_os_path)
 # device, no render loop -- so it runs in the same harness as the libobs tests.
 add_obs_cmocka_test(test_mc_channel OBS::mc-data)
 add_obs_cmocka_test(test_mc_frame OBS::mc-data)
+add_obs_cmocka_test(test_mc_parser OBS::mc-data)

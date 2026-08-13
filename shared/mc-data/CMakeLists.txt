@@ -7,7 +7,16 @@ cmake_minimum_required(VERSION 3.28...3.30)
 add_library(mc-data STATIC)
 add_library(OBS::mc-data ALIAS mc-data)
 
-target_sources(mc-data PRIVATE mc-channel.c include/mc-data/mc-channel.h mc-frame.c include/mc-data/mc-frame.h)
+target_sources(
+  mc-data
+  PRIVATE
+    mc-channel.c
+    include/mc-data/mc-channel.h
+    mc-frame.c
+    include/mc-data/mc-frame.h
+    mc-parser.c
+    include/mc-data/mc-parser.h
+)
 
 target_include_directories(mc-data PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
 

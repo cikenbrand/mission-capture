@@ -201,6 +201,45 @@ Notes:
 **Test:** `test/cmocka/test_mc_parser.c` — table-driven, including a deliberate corpus of
 malformed lines.
 
+#### As built
+
+**Scope: Delimited + NMEA-0183.** Key/value, regex and fixed-width are deferred until a device
+needs them — a parser written against no real data is a guess with tests attached.
+
+- **The map is sparse and positional.** Four names on four positions of an eight-field row is the
+  normal case, so the parser has no notion of a "correct" field count and unmapped fields cost
+  nothing and count for nothing. One name at one position, one position per name, both enforced
+  at create time.
+- **Each mapping declares whether it expects a number.** `12:01` is a good Time and a bad double;
+  without this the Time channel would sit permanently BAD in the health panel. Text fields keep
+  their raw token and report no number.
+- **One unreadable field marks only its own channel**, exactly as the plan requires. A short row
+  marks only the positions it never reached, and those go BAD rather than keeping the previous
+  reading — a stale value that still looks current is what ends up on a client deliverable.
+- **An empty field is BAD, never zero.** Routine in NMEA when a sounder has no lock, and a depth
+  of 0.0 is a very different claim from "no reading".
+- **`strtod` must consume the whole token.** `5.2m` is not 5.2; a unit suffix appearing means the
+  device is not sending what the map claims.
+- **NMEA matches on the sentence tail**, so `DBT` accepts `$SDDBT` and `$IIDBT` alike — the talker
+  identifies the box, the sentence identifies the reading. Checksum failure rejects the whole
+  sentence, unlike a single bad field, because a checksum says the line is corrupt and no part of
+  it can be trusted. Sentences without a checksum are accepted unless configured otherwise.
+- **Counts, not log lines.** `rows`, `short_rows`, `bad_fields` and `rejected` are counters; at
+  10 Hz a noisy line would bury the log.
+
+**Framing note:** NMEA must be framed on its line terminator, **not** 3.2's sentinel mode, which
+strips `$` and `*` and would discard the checksum before the parser saw it. This resolves the loose
+end left in the 3.2 notes.
+
+**Verified, not assumed:** two mutations. An off-by-one in short-row detection (`<` for `<=`)
+leaves a stale value reading GOOD — and the original suite did not catch it, so the boundary test
+was written before the fix was confirmed. The classic `atof` bug, where unparseable input becomes a
+confident `0.0`, is caught by two tests.
+
+**OI-64 is addressed, not eliminated.** A fragment is short, so the positions it never reached go
+BAD and `short_rows` climbs. The values it *does* carry still land in the wrong channels and still
+look plausible; that risk is accepted and the counter is what makes it visible.
+
 ---
 
 ### 3.4 — Channel transforms
