@@ -76,6 +76,54 @@ if ($ds.Count -eq 1) {
                 'Capture continues while the Element is off-screen' 'P2-AC2'
 }
 
+# --- P2-AC4: the property sheet is cut down, not cut away --------------------
+# Exercised against a real dshow_input built by the plugin, not a hand-made
+# list: the filter's job is to walk the plugin's own property set, and a fixture
+# would only prove the code can read its own invention.
+$cp = $manifest.captureProperties
+Assert-True ($null -ne $cp) 'Manifest records the capture property filter' 'P2-AC4'
+
+if ($cp) {
+    Assert-True ($cp.isCaptureSource_dshow -eq $true -and $cp.isCaptureSource_decklink -eq $true) `
+                'Both capture backends are recognised' 'P2-AC4'
+    # Anything else must get upstream's dialog untouched.
+    Assert-True ($cp.isCaptureSource_other -eq $false) `
+                'A non-capture source is left alone' 'P2-AC4'
+}
+
+if ($cp -and $cp.PSObject.Properties.Name -contains 'simple') {
+    $simple = $cp.simple
+    $adv = $cp.advanced
+
+    Assert-True ($simple.hidden -gt 0) `
+                "The simple sheet hides $($simple.hidden) of $($simple.total) properties" 'P2-AC4'
+    Assert-True (@($simple.visible).Count -lt @($adv.visible).Count) `
+                "Advanced shows more than simple ($(@($simple.visible).Count) -> $(@($adv.visible).Count))" 'P2-AC4'
+
+    # The five the plan names as always-visible. Colour range especially: a
+    # full-vs-limited mismatch on SDI looks like a camera fault and is a
+    # two-click fix, so burying it costs more than showing it.
+    foreach ($keep in @('video_device_id', 'res_type', 'frame_interval', 'color_space', 'color_range',
+                        'buffering', 'audio_output_mode')) {
+        Assert-True (@($simple.visible) -contains $keep) "'$keep' stays visible by default" 'P2-AC4'
+    }
+
+    # ...and the noise that should not be in an operator's way.
+    foreach ($hide in @('video_format', 'autorotation', 'hw_decode', 'flip_vertically', 'xbar_config')) {
+        Assert-True (@($simple.visible) -notcontains $hide) "'$hide' is behind Advanced" 'P2-AC4'
+    }
+
+    # Nothing is removed -- Advanced must bring back everything the filter hid.
+    foreach ($hide in @('video_format', 'autorotation', 'hw_decode')) {
+        Assert-True (@($adv.visible) -contains $hide) "'$hide' returns under Advanced" 'P2-AC4'
+    }
+
+    # A property the *plugin* hides for its own reasons must stay hidden even in
+    # Advanced, or turning it on would show rows that do not apply.
+    Assert-True (@($adv.visible).Count -lt $adv.total) `
+                'Advanced does not override the plugin''s own conditional hiding' 'P2-AC4'
+}
+
 # --- P2-AC3: a Job whose camera is absent still works ------------------------
 # The case that actually happens: a Job built on the vessel opened on a laptop,
 # or a card swapped between dives. No hardware is needed to test it, and it is

@@ -17,11 +17,15 @@
 
 #include "OBSBasicProperties.hpp"
 
+#include <subsea/MCCaptureProperties.hpp>
+
 #include <utility/display-helpers.hpp>
 #include <widgets/OBSBasic.hpp>
 
 #include <properties-view.hpp>
 #include <qt-wrappers.hpp>
+
+#include <QCheckBox>
 #include <vertical-scroll-area.hpp>
 
 #include <QPushButton>
@@ -69,12 +73,32 @@ OBSBasicProperties::OBSBasicProperties(QWidget *parent, OBSSource source_)
 	OBSDataAutoRelease nd_settings = obs_source_get_settings(source);
 	obs_data_apply(oldSettings, nd_settings);
 
-	view = new OBSPropertiesView(nd_settings.Get(), source, (PropertiesReloadCallback)obs_source_properties,
+	/* Mission Capture: capture sources get a cut-down sheet, with everything
+	 * else behind the Advanced toggle added below. Any other source type gets
+	 * obs_source_properties unchanged. See frontend/subsea/MCCaptureProperties.hpp. */
+	const bool captureSource = MCCaptureProperties::isCaptureSource(obs_source_get_id(source));
+	MCCaptureProperties::setAdvancedShown(false);
+
+	view = new OBSPropertiesView(nd_settings.Get(), source,
+				     captureSource ? (PropertiesReloadCallback)MCCaptureProperties::reload
+						   : (PropertiesReloadCallback)obs_source_properties,
 				     (PropertiesUpdateCallback) nullptr, // No special handling required for undo/redo
 				     (PropertiesVisualUpdateCb)obs_source_update);
 	view->setMinimumHeight(150);
 
 	ui->propertiesLayout->addWidget(view);
+
+	if (captureSource) {
+		auto *advanced = new QCheckBox(QTStr("CaptureProperties.Advanced"), this);
+		advanced->setObjectName(QStringLiteral("captureAdvancedToggle"));
+		advanced->setToolTip(QTStr("CaptureProperties.Advanced.Tooltip"));
+		ui->propertiesLayout->addWidget(advanced);
+
+		connect(advanced, &QCheckBox::toggled, this, [this](bool on) {
+			MCCaptureProperties::setAdvancedShown(on);
+			view->ReloadProperties();
+		});
+	}
 
 	if (type == OBS_SOURCE_TYPE_TRANSITION) {
 		ui->transitionButton->setVisible(true);

@@ -439,6 +439,19 @@ bool MCJobWizard::create(const Plan &plan)
 	 * hardware is fitted is a real case, and the naming is the part worth
 	 * keeping.
 	 */
+	/*
+	 * The Canvas the new collection came with (OI-58).
+	 *
+	 * obs_frontend_add_scene_collection() creates one default scene, and this
+	 * loop used to add its own alongside it -- so a Job set up for three
+	 * cameras opened with four Canvases, one empty and named "Canvas", for the
+	 * operator to notice and delete. Noted before the loop and removed after,
+	 * rather than reused for the first camera: removing it last means the Job
+	 * is never momentarily empty, which would make the frontend pick a new
+	 * program Canvas and fire a scene change through the Layers tree.
+	 */
+	OBSSourceAutoRelease strayCanvas = obs_frontend_get_current_scene();
+
 	for (int i = 0; i < plan.canvasNames.size(); i++) {
 		const QString &name = plan.canvasNames[i];
 		OBSSceneAutoRelease scene = obs_scene_create(QT_TO_UTF8(name));
@@ -458,6 +471,19 @@ bool MCJobWizard::create(const Plan &plan)
 		device.sourceId = (i < plan.canvasSourceIds.size()) ? plan.canvasSourceIds[i] : QString();
 
 		MCVideoCaptureElement::addTo(scene, device, name);
+	}
+
+	/* Only once at least one named Canvas exists, so the Job is never empty --
+	 * and never when the wizard produced none, which would leave nothing. */
+	if (strayCanvas && !plan.canvasNames.isEmpty()) {
+		OBSSourceAutoRelease firstNamed = obs_get_source_by_name(QT_TO_UTF8(plan.canvasNames.first()));
+		if (firstNamed) {
+			obs_frontend_set_current_scene(firstNamed);
+		}
+
+		blog(LOG_INFO, "[MCJobWizard] Removing the default Canvas '%s' left by the new Job",
+		     obs_source_get_name(strayCanvas));
+		obs_source_remove(strayCanvas);
 	}
 
 	blog(LOG_INFO, "[MCJobWizard] Created Job '%s' with %d Canvas(es), recording to '%s'",

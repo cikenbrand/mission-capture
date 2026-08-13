@@ -9,6 +9,8 @@ target_sources(
     subsea/MCBranding.hpp
     subsea/MCCaptureDevices.cpp
     subsea/MCCaptureDevices.hpp
+    subsea/MCCaptureProperties.cpp
+    subsea/MCCaptureProperties.hpp
     subsea/MCDefaults.cpp
     subsea/MCDefaults.hpp
     subsea/MCDiskSpace.cpp

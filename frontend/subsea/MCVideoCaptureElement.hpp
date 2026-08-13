@@ -87,4 +87,22 @@ OBSSceneItem addTo(obs_scene_t *scene, const MCCaptureDevices::Device &device, c
  */
 OBSData settingsFor(const MCCaptureDevices::Device &device);
 
+/*
+ * Sizes the Canvas to a source rather than to the monitor -- OI-48.
+ *
+ * OBS derives base resolution from the primary display, which is the right
+ * guess for a streamer capturing their own screen and the wrong one for an
+ * inspection recorder: a 1440p monitor gives a 1440p Canvas for a 1080p camera,
+ * so every frame is upscaled and the encoder pays for pixels the camera never
+ * produced. The plan asks for the source's own resolution, "rather than forcing
+ * 1920x1080" -- which means neither the monitor nor a constant.
+ *
+ * Only acts when the Job has exactly one Canvas holding exactly this Element,
+ * because with several cameras of different sizes there is no single right
+ * answer and the operator has to choose. Never shrinks below the source.
+ *
+ * Returns true if the Canvas was resized.
+ */
+bool matchCanvasToSource(obs_source_t *source);
+
 } // namespace MCVideoCaptureElement

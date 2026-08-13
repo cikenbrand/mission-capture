@@ -17,6 +17,7 @@
 
 #include "MCUIManifest.hpp"
 #include "MCCaptureDevices.hpp"
+#include "MCCaptureProperties.hpp"
 #include "MCDefaults.hpp"
 #include "MCDiskSpace.hpp"
 #include "MCElementTypes.hpp"
@@ -372,6 +373,52 @@ bool write(OBSBasic *main, const std::string &path)
 		}
 
 		root["captureFactory"] = factory;
+	}
+
+	/* --- Capture property filter (task 2.2) ------------------------------- */
+	/*
+	 * Run against a real, temporary dshow_input rather than a synthetic one:
+	 * the filter's whole job is to walk the property set the *plugin* builds,
+	 * and a hand-made list would prove only that the code can read its own
+	 * fixture. The source is created detached, queried, and released -- it is
+	 * never added to a Canvas and never opens a device.
+	 */
+	{
+		QJsonObject filter;
+
+		OBSSourceAutoRelease probe = obs_source_create_private("dshow_input", "mc-property-probe", nullptr);
+		if (probe) {
+			auto describe = [&](bool advanced) {
+				MCCaptureProperties::setAdvancedShown(advanced);
+				obs_properties_t *props = MCCaptureProperties::reload(probe.Get());
+
+				QJsonArray visible;
+				int total = 0;
+				for (obs_property_t *p = obs_properties_first(props); p; obs_property_next(&p)) {
+					total++;
+					if (obs_property_visible(p)) {
+						visible.append(QString::fromUtf8(obs_property_name(p)));
+					}
+				}
+				obs_properties_destroy(props);
+
+				QJsonObject out;
+				out["total"] = total;
+				out["visible"] = visible;
+				out["hidden"] = MCCaptureProperties::lastHiddenCount();
+				return out;
+			};
+
+			filter["simple"] = describe(false);
+			filter["advanced"] = describe(true);
+			MCCaptureProperties::setAdvancedShown(false);
+		}
+
+		filter["isCaptureSource_dshow"] = MCCaptureProperties::isCaptureSource("dshow_input");
+		filter["isCaptureSource_decklink"] = MCCaptureProperties::isCaptureSource("decklink-input");
+		filter["isCaptureSource_other"] = MCCaptureProperties::isCaptureSource("color_source");
+
+		root["captureProperties"] = filter;
 	}
 
 	/* --- Settings dialog ------------------------------------------------ */

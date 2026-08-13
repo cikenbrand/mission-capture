@@ -17,9 +17,14 @@
 
 #include "MCVideoCaptureElement.hpp"
 
+#include <widgets/OBSBasic.hpp>
+
 #include <qt-wrappers.hpp>
 
 #include <util/base.h>
+
+#include <QApplication>
+#include <QTimer>
 
 namespace MCVideoCaptureElement {
 
@@ -106,6 +111,58 @@ OBSData settingsFor(const MCCaptureDevices::Device &device)
 	return settings.Get();
 }
 
+bool matchCanvasToSource(obs_source_t *source)
+{
+	if (!source) {
+		return false;
+	}
+
+	const uint32_t cx = obs_source_get_width(source);
+	const uint32_t cy = obs_source_get_height(source);
+
+	/*
+	 * Zero means the source has not produced a frame yet -- no signal, no
+	 * device, or still opening. Resizing to 0x0 would be catastrophic and
+	 * silent, so nothing is done and the caller may try again later.
+	 */
+	if (cx == 0 || cy == 0) {
+		return false;
+	}
+
+	OBSBasic *main = OBSBasic::Get();
+	if (!main) {
+		return false;
+	}
+
+	config_t *config = main->Config();
+	const uint32_t baseCX = static_cast<uint32_t>(config_get_uint(config, "Video", "BaseCX"));
+	const uint32_t baseCY = static_cast<uint32_t>(config_get_uint(config, "Video", "BaseCY"));
+
+	if (baseCX == cx && baseCY == cy) {
+		return false;
+	}
+
+	/*
+	 * Written as user values, not defaults. Upstream force-writes BaseCX/BaseCY
+	 * as user values during InitBasicConfigDefaults precisely so a changing
+	 * default cannot move an operator's canvas, so a default here would be
+	 * ignored -- the same last-writer trap task 1.7 hit from the other side.
+	 */
+	config_set_uint(config, "Video", "BaseCX", cx);
+	config_set_uint(config, "Video", "BaseCY", cy);
+	config_set_uint(config, "Video", "OutputCX", cx);
+	config_set_uint(config, "Video", "OutputCY", cy);
+	config_save_safe(config, "tmp", nullptr);
+
+	blog(LOG_INFO, "[MCVideoCaptureElement] Canvas resized from %ux%u to %ux%u to match '%s'", baseCX, baseCY, cx,
+	     cy, obs_source_get_name(source));
+
+	/* Applies without a restart; the preview and the encoders both follow. */
+	main->ResetVideo();
+
+	return true;
+}
+
 OBSSceneItem addTo(obs_scene_t *scene, const MCCaptureDevices::Device &device, const QString &name)
 {
 	if (!scene) {
@@ -126,6 +183,28 @@ OBSSceneItem addTo(obs_scene_t *scene, const MCCaptureDevices::Device &device, c
 
 	blog(LOG_INFO, "[MCVideoCaptureElement] Added '%s' (%s via %s)", QT_TO_UTF8(name), QT_TO_UTF8(device.name),
 	     sourceId);
+
+	/*
+	 * Size the Canvas to the camera once it reports a size (OI-48).
+	 *
+	 * Retried rather than called once: a capture device reports 0x0 until its
+	 * first frame arrives, and how long that takes depends on the card, the
+	 * cable and whether anything is plugged in at all. Six attempts over three
+	 * seconds covers a device that is present and gives up quietly on one that
+	 * is not -- there is nothing to match against a camera with no signal, and
+	 * guessing would be worse than leaving the Canvas alone.
+	 */
+	auto *attempts = new int(0);
+	auto *timer = new QTimer(qApp);
+	timer->setInterval(500);
+	QObject::connect(timer, &QTimer::timeout, qApp, [timer, attempts, src = OBSSource(source.Get())]() {
+		if (matchCanvasToSource(src) || ++(*attempts) >= 6) {
+			timer->stop();
+			timer->deleteLater();
+			delete attempts;
+		}
+	});
+	timer->start();
 
 	return item;
 }
