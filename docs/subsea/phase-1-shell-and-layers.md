@@ -173,14 +173,66 @@ what [Phase 8](phase-8-sidecar-log.md)'s manifest reads.
 
 ---
 
-### 1.9 — Recording-safety affordances
+### 1.9 — Recording safety
+
+**Split into three on 2026-08-13**, after 1.5–1.8 added two concerns the original 2-day estimate
+never covered. The three are separated by *risk*, not by size: 1.9a cannot corrupt a recording,
+1.9b can, and 1.9c is blocked on a decision rather than on code. Bundled together, the one that
+can lose footage would have been the one that got rushed.
+
+---
+
+#### 1.9a — Recording-safety UI
 `2 days`
 
 - Large, unmistakable record indicator with elapsed time
 - Confirm-on-stop when a recording has run longer than a configurable duration (default 60 s)
 - A "locked" mode that disables Layers editing while recording, toggled deliberately
-- Free-space warnings at 10 GB and 2 GB, and a hard stop with a clean file close before the disk
-  fills
+
+All frontend, all reversible, and all observable through `--dump-ui-manifest` the way 1.5–1.8 were.
+
+---
+
+#### 1.9b — Disk-space protection
+`3 days` — the task in this phase that can destroy a recording if it is wrong
+
+- A free-space field in the status bar. **Raised in the [UI audit](ui-audit.md) as a gap**: filling
+  a disk mid-dive is the most predictable way to lose footage, and nothing currently shows it
+- Warnings at 10 GB and 2 GB
+- A hard stop with a **clean file close** before the disk fills
+
+The last point is why this is its own task. It reaches into the output pipeline rather than the UI,
+and "stop cleanly at the edge of a full disk" is precisely the path that, done wrong, produces the
+unplayable file the MKV default in [1.7](#17--inspection-appropriate-defaults) exists to prevent.
+
+**Needs a test fixture that does not involve filling a real disk** — most likely a small
+virtual disk or a configurable threshold the test can move, decided when the task starts.
+
+---
+
+#### 1.9c — Unattended startup
+`1 day`, and **blocked on a product decision**, not on code
+
+Two dialogs currently wait forever for an operator who may not be there:
+
+- **OI-46** — a dirty shutdown leaves a `.sentinel/run_*` file, and the next launch opens a modal
+  crash prompt
+- **OI-54** — first run opens the New Job wizard, added in [1.8](#18--new-job-wizard)
+
+Both are correct for someone sitting at the machine, and both are wrong for a vessel PC that is
+auto-started, freshly imaged, or recovering from a power cut. They are one decision, not two:
+**what should this app do when it starts with nobody watching?**
+
+Options, to be chosen rather than guessed:
+
+| Approach | Trade-off |
+|---|---|
+| A command-line switch (`--unattended`) | Explicit and testable, but only helps where someone configured the shortcut |
+| Timeout that picks the safe default | Works with no configuration; risks dismissing a crash prompt someone wanted to read |
+| Suppress when not launched by hand | Correct automatically, but "was this auto-started?" is a guess on Windows |
+
+CI already exercises this path — hosted runners start from a clean config every time — so whatever
+is chosen can be asserted in T0.
 
 ---
 

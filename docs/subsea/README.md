@@ -173,7 +173,7 @@ Phases are ordered by **dependency**, not by the order the features were request
 | Phase | Title | Delivers | Rough effort |
 |---|---|---|---|
 | [0](phase-0-foundation.md) | **Foundation** | Fork hygiene, branding, Windows-only build, feature flags, test harness, CI, hardware benchmark | 1–2 weeks |
-| [1](phase-1-shell-and-layers.md) | **Shell & Layers tree** | Terminology, the Layers tree panel, declutter, defaults, New Job wizard | 4–6 weeks |
+| [1](phase-1-shell-and-layers.md) | **Shell & Layers tree** | Terminology, the Layers tree panel, declutter, defaults, New Job wizard, recording safety | 4–6 weeks |
 | [2](phase-2-video-elements.md) | **Video elements** | Video Capture Device (DeckLink + DirectShow) and RTSP Camera elements | 2–3 weeks |
 | [3](phase-3-data-core.md) | **Data core** | Channel registry, parser engine, simulator transport — headless, unit-tested | 2–3 weeks |
 | [4](phase-4-overlay-editor.md) | **Overlay editor** | Overlay Edit mode, templates, text/image/data-field items, assignment | 4–6 weeks |
@@ -350,7 +350,7 @@ Phase 9 plans WHIP as the default and keeps SRT/RIST available, since OBS suppor
 | [PROGRESS.md](PROGRESS.md) | **Live status** — task tracker, open-items register, upstream merge log. The only document that changes as work happens |
 | [architecture.md](architecture.md) | How each feature maps onto real OBS internals, with file and API references. **Read before any phase doc.** |
 | [phase-0-foundation.md](phase-0-foundation.md) | Fork hygiene, branding, build slimming, feature flags, test harness, hardware benchmark |
-| [phase-1-shell-and-layers.md](phase-1-shell-and-layers.md) | Terminology, the Layers tree, declutter, defaults, New Job wizard |
+| [phase-1-shell-and-layers.md](phase-1-shell-and-layers.md) | Terminology, the Layers tree, declutter, defaults, New Job wizard, recording safety |
 | [phase-2-video-elements.md](phase-2-video-elements.md) | Capture device and RTSP camera elements |
 | [phase-3-data-core.md](phase-3-data-core.md) | Channel registry, parsers, simulator |
 | [phase-4-overlay-editor.md](phase-4-overlay-editor.md) | Overlay Edit mode and templates |
