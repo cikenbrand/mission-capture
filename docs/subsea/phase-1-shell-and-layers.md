@@ -216,7 +216,23 @@ virtual disk or a configurable threshold the test can move, decided when the tas
 ---
 
 #### 1.9c — Unattended startup
-`1 day`, and **blocked on a product decision**, not on code
+**Deferred 2026-08-13 — not built, not dropped.**
+
+> **The decision:** Mission Capture is launched by hand by the operator, never auto-started with
+> Windows. Nobody is waiting on a dialog that nobody is there to answer, because someone always is.
+> Current behaviour stands; no `--unattended` mode at this stage.
+>
+> **What would bring it back:** any deployment where the app starts without a person present — a
+> Startup-folder shortcut, a scheduled task, a kiosk build, or an unattended re-image. If that
+> changes, this section is the design; nothing here needs rethinking, only building.
+>
+> **Residual risk, accepted:** after a crash or power cut mid-dive the operator gets the crash
+> prompt before they can resume recording. They can answer it, so it costs seconds rather than
+> footage — but it is seconds at the worst possible moment.
+
+The rest of this section is retained as the design, should the deployment model change.
+
+---
 
 Two dialogs currently wait forever for an operator who may not be there:
 
