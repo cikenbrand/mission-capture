@@ -256,7 +256,11 @@ if ($types.Count) {
 # The Layers context menu borrows these two from upstream. They are the only
 # route to adding anything now that the Sources dock is retired, so a rename
 # upstream must fail loudly here rather than silently emptying the menu.
-foreach ($borrowed in @('actionAddScene', 'actionAddSource',
+# actionAddSource is deliberately absent from this list as of task 2.5: the
+# Layers menu now opens our own Add Element picker instead, because 1.6 had cut
+# upstream's list down to a single row. It still exists as an action; it is just
+# no longer the way in.
+foreach ($borrowed in @('actionAddScene',
                         'actionMoveUp', 'actionMoveDown', 'actionMoveToTop', 'actionMoveToBottom')) {
     $a = @(@($manifest.actions) + @($manifest.hiddenActions) | Where-Object { $_.name -eq $borrowed })
     Assert-True ($a.Count -eq 1) "Layers menu can still borrow '$borrowed' from upstream" 'P1-AC8'

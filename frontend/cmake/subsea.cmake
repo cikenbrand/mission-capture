@@ -6,6 +6,8 @@
 target_sources(
   obs-studio
   PRIVATE
+    subsea/MCAddElementDialog.cpp
+    subsea/MCAddElementDialog.hpp
     subsea/MCBranding.hpp
     subsea/MCCaptureDevices.cpp
     subsea/MCCaptureDevices.hpp

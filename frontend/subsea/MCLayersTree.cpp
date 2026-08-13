@@ -19,6 +19,7 @@
 #include "MCLayersDelegate.hpp"
 #include "MCLayersModel.hpp"
 #include "MCRecordLock.hpp"
+#include "MCAddElementDialog.hpp"
 #include "MCRtspElement.hpp"
 
 #include <OBSApp.hpp>
@@ -435,18 +436,22 @@ void MCLayersTree::contextMenuEvent(QContextMenuEvent *event)
 	 * nothing asserted that the remaining surface still works.
 	 */
 	addUpstreamAction(menu, "actionAddScene");
-	addUpstreamAction(menu, "actionAddSource");
-
-	/* RTSP has no entry in upstream's Add Source list -- it is an ffmpeg_source
-	 * with particular settings, not a type of its own -- so it needs its own
-	 * way in until task 2.5 builds the three-button picker. */
+	/*
+	 * Add Element goes through our picker, not upstream's Add Source dialog.
+	 * Task 1.6 cut that list down to a single entry, which made it look broken
+	 * rather than focused; the picker is the shape the product wants and stays
+	 * right as the other two Element types arrive.
+	 *
+	 * actionAddSource is deliberately no longer offered here -- two ways in,
+	 * one of them a near-empty list, is worse than one.
+	 */
 	{
 		const QModelIndex target = index.isValid() ? index : currentIndex();
 		OBSScene scene = model_->canvasAt(target);
-		QAction *rtsp = menu.addAction(QTStr("Rtsp.AddElement"));
-		rtsp->setObjectName(QStringLiteral("actionAddRtspCamera"));
-		rtsp->setEnabled(scene != nullptr);
-		connect(rtsp, &QAction::triggered, this, [this, scene]() { MCRtspElement::promptAndAdd(this, scene); });
+		QAction *add = menu.addAction(QTStr("AddElement.Action"));
+		add->setObjectName(QStringLiteral("actionAddElement"));
+		add->setEnabled(scene != nullptr);
+		connect(add, &QAction::triggered, this, [this, scene]() { MCAddElementDialog::run(this, scene); });
 	}
 
 	/*

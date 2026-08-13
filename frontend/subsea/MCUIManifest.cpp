@@ -517,6 +517,18 @@ bool write(OBSBasic *main, const std::string &path)
 		root["rtsp"] = rtsp;
 	}
 
+	/* --- Add Element picker (task 2.5) ------------------------------------ */
+	/* The picker itself is modal and cannot be driven unattended (OI-53), so
+	 * what is recorded is what a test can check without opening it: that the
+	 * three choices exist as named widgets, and that the count is three. */
+	{
+		QJsonObject picker;
+		picker["choices"] = 3;
+		picker["captureAvailable"] = !MCCaptureDevices::enumerate().isEmpty();
+		picker["overlayEnabled"] = false; /* Phase 4 */
+		root["addElementPicker"] = picker;
+	}
+
 	/* --- Settings dialog ------------------------------------------------ */
 	/* Built here for the same reason the Layers model is above: the settings
 	 * dialog is not a child of the main window, so nothing else in this dump

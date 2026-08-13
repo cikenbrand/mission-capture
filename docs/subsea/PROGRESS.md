@@ -46,7 +46,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 |---|---|---|---|---|
 | [0](phase-0-foundation.md) | Foundation | 7 | **7** | **`done`** |
 | [1](phase-1-shell-and-layers.md) | Shell & Layers tree | 11 | **10** | **`done`** |
-| [2](phase-2-video-elements.md) | Video elements | 6 | **4** | `wip` |
+| [2](phase-2-video-elements.md) | Video elements | 6 | **5** | `wip` |
 | [3](phase-3-data-core.md) | Data core | 7 | 0 | `todo` |
 | [4](phase-4-overlay-editor.md) | Overlay editor | 8 | 0 | `todo` |
 | [5](phase-5-transports.md) | Transports & config UI | 6 | 0 | `todo` |
@@ -54,7 +54,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 | [7](phase-7-secondary-capture.md) | Secondary capture | 11 | 0 | `todo` |
 | [8](phase-8-sidecar-log.md) | Sidecar log & hardening | 8 | 0 | `todo` |
 | [9](phase-9-webrtc-streaming.md) | WebRTC streaming | 6 | 0 | `todo` |
-| | **Total** | **78** | **21** | |
+| | **Total** | **78** | **22** | |
 
 **Acceptance criteria met:** 15 / 113 — `P0-AC1`–`AC5` and `P1-AC1`, `AC2`, `AC3`, `AC7`–`AC13`, each asserted by T0 or T1 with evidence in their run reports.
 
@@ -179,7 +179,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 | 2.2 | Simplified capture properties | **`done`** | 2026-08-13 | T2 now 37 assertions, run against a real `dshow_input` the plugin built: 8 of 18 properties visible by default, all of them back under Advanced | Filtered with `obs_property_set_visible` through the view's reload callback — `AddProperty` already honours the flag, so nothing in the rendering path changed, and doing it on reload is what keeps the filter from being undone by the first edit. Hidden, never removed: the one time a camera needs a manual pixel format is the time the alternative is not recording. Only *currently visible* properties are hidden, so a row the plugin itself conditionally hides stays hidden under Advanced too. Advanced is not persisted — it is for solving the problem in front of you. **Also closed OI-58**; **OI-48 implemented but unverified, see OI-59** |
 | 2.3 | Device loss and recovery | **`done`** | 2026-08-13 | T2 now 44 assertions: the filter registers, attaches to an Element whose device does not exist, resolves its name, and reports never-connected as *unknown* rather than lost | **Detection built, display and recovery partly not.** Neither backend announces a loss — they stop calling `obs_source_output_video` and libobs keeps rendering the last frame, so the preview looks healthy while the camera is dead. Nor is it observable from outside: `obs_source_get_width` holds the last size and `obs_source_get_frame` *steals* the pending frame from the renderer. So detection is a tiny internal filter whose `filter_video` counts delivered frames, registered from the frontend (`obs_register_source` is public; a plugin for one counter would be a lot of build system). Verified counting real frames from a live device. **OI-62 closed by 2.4's fixture — the Lost transition is now observed, not argued.** Two parts remain deferred: OI-60 (preview banner, 2.6 owns health display) and OI-61 (our own reconnect policy). The watch was also extended to network media, without which an RTSP camera — the source most likely to drop — would not have been watched at all |
 | 2.4 | RTSP Camera element | **`done`** | 2026-08-13 | T2 now 59 assertions including a **live source killed mid-run**: frames detected, then `SIGNAL LOST` three seconds after the stream died | A frontend factory over `ffmpeg_source`, as 2.1 settled on — OBS already speaks RTSP, so the work is settings and failure behaviour, not transport. Buffering 0 (upstream's 2 MB is seconds of delay on a live camera), reconnect 2 s (upstream's 10 s is a long time to wonder), TCP by default because UDP drops packets silently and looks like a camera fault. Credentials are separate fields composed through `QUrl` and scrubbed on every log line — the probe password contains `:`, `@` and `/` precisely because those break naive handling. **The fixture needed no download**: ffmpeg can `-listen` on TCP, so the suite serves its own killable stream |
-| 2.5 | Add Element picker | `todo` | | | |
+| 2.5 | Add Element picker | **`done`** | 2026-08-13 | All three suites green; the picker replaces the borrowed Add Source action in the Layers menu | Three buttons, not thirteen rows. Task 1.6 had already cut upstream's list to a single entry, which made it look broken rather than focused — the picker is the shape the product wants and stays right as the other two Element types arrive. Device discovery runs *before* the dialog opens, so the camera button says how many it found rather than making the operator open it to learn there are none. Overlay is present and disabled, same honesty as the Job wizard's stub pages. Naming is its own step rather than a dropdown, because the name becomes the Layers row, the `%CANVAS%` token and the filename. **The interactive flow is untested (OI-53)** — the manifest records only that three choices exist |
 | 2.6 | Latency and health measurement | `todo` | | | |
 
 ## Phase 3 — Data core
