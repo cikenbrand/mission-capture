@@ -46,7 +46,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 |---|---|---|---|---|
 | [0](phase-0-foundation.md) | Foundation | 7 | **7** | **`done`** |
 | [1](phase-1-shell-and-layers.md) | Shell & Layers tree | 11 | **10** | **`done`** |
-| [2](phase-2-video-elements.md) | Video elements | 6 | 0 | `todo` |
+| [2](phase-2-video-elements.md) | Video elements | 6 | **1** | `wip` |
 | [3](phase-3-data-core.md) | Data core | 7 | 0 | `todo` |
 | [4](phase-4-overlay-editor.md) | Overlay editor | 8 | 0 | `todo` |
 | [5](phase-5-transports.md) | Transports & config UI | 6 | 0 | `todo` |
@@ -54,7 +54,7 @@ A task is `done` only when all of these hold. Anything short of it stays `in pro
 | [7](phase-7-secondary-capture.md) | Secondary capture | 11 | 0 | `todo` |
 | [8](phase-8-sidecar-log.md) | Sidecar log & hardening | 8 | 0 | `todo` |
 | [9](phase-9-webrtc-streaming.md) | WebRTC streaming | 6 | 0 | `todo` |
-| | **Total** | **78** | **17** | |
+| | **Total** | **78** | **18** | |
 
 **Acceptance criteria met:** 15 / 113 — `P0-AC1`–`AC5` and `P1-AC1`, `AC2`, `AC3`, `AC7`–`AC13`, each asserted by T0 or T1 with evidence in their run reports.
 
@@ -170,7 +170,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 
 | ID | Task | Status | Done | Evidence | Notes |
 |---|---|---|---|---|---|
-| 2.1 | Unified Video Capture Device element | `todo` | | | Needs OI-6 |
+| 2.1 | Unified Video Capture Device element | **`done`** | 2026-08-13 | New T2 suite, 16 assertions, **all passing with no capture card connected** | A frontend factory (`MCVideoCaptureElement`), not a new source type: a wrapper would mean reimplementing two property sheets and two failure modes, and would put our code between the card and the encoder. Unification happens at the point of *choosing*; after that each Element is an ordinary upstream source. Our defaults over OBS's — DeckLink auto input-format (a wrongly-pinned mode shows nothing and gives the operator no clue which end is wrong), no buffering on either backend, and `deactivate_when_not_showing=false` because Phase 6 records Canvases that are not on screen and OBS's default would have made those recordings black. The 1.8 wizard now creates Elements rather than just naming Canvases. Verified against synthetic devices and a fixture Job whose camera does not exist |
 | 2.2 | Simplified capture properties | `todo` | | | Needs OI-6 |
 | 2.3 | Device loss and recovery | `todo` | | | |
 | 2.4 | RTSP Camera element | `todo` | | | |

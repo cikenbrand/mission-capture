@@ -16,6 +16,7 @@
 ******************************************************************************/
 
 #include "MCJobWizard.hpp"
+#include "MCVideoCaptureElement.hpp"
 
 #include <OBSApp.hpp>
 #include <qt-wrappers.hpp>
@@ -251,7 +252,7 @@ public:
 		 * a hurry can press Next and still get a working Job.
 		 */
 		for (const MCCaptureDevices::Device &device : devices_) {
-			addRow(device.name, device.id);
+			addRow(device.name, device.id, device.sourceId);
 		}
 
 		if (devices_.isEmpty()) {
@@ -277,6 +278,22 @@ public:
 		return out;
 	}
 
+	/* Backends, parallel to deviceIds(). Kept beside the id because the id
+	 * alone does not say which source type can use it. */
+	QVector<QString> sourceIds() const
+	{
+		QVector<QString> out;
+		for (int row = 0; row < table_->rowCount(); row++) {
+			const QTableWidgetItem *nameItem = table_->item(row, 0);
+			if (!nameItem || nameItem->text().trimmed().isEmpty()) {
+				continue;
+			}
+			const QTableWidgetItem *deviceItem = table_->item(row, 1);
+			out.append(deviceItem ? deviceItem->data(Qt::UserRole + 1).toString() : QString());
+		}
+		return out;
+	}
+
 	QVector<QString> deviceIds() const
 	{
 		QVector<QString> out;
@@ -292,7 +309,7 @@ public:
 	}
 
 private:
-	void addRow(const QString &name, const QString &deviceId)
+	void addRow(const QString &name, const QString &deviceId, const QString &sourceId = {})
 	{
 		const int row = table_->rowCount();
 		table_->insertRow(row);
@@ -302,6 +319,7 @@ private:
 		auto *deviceItem =
 			new QTableWidgetItem(deviceId.isEmpty() ? QTStr("JobWizard.Cameras.NoDevice") : name);
 		deviceItem->setData(Qt::UserRole, deviceId);
+		deviceItem->setData(Qt::UserRole + 1, sourceId);
 		deviceItem->setFlags(deviceItem->flags() & ~Qt::ItemIsEditable);
 		table_->setItem(row, 1, deviceItem);
 	}
@@ -380,6 +398,7 @@ MCJobWizard::Plan MCJobWizard::collect() const
 	if (const auto *cameras = static_cast<const CamerasPage *>(page(Page_Cameras))) {
 		plan.canvasNames = cameras->names();
 		plan.canvasDevices = cameras->deviceIds();
+		plan.canvasSourceIds = cameras->sourceIds();
 	}
 
 	return plan;
@@ -411,9 +430,14 @@ bool MCJobWizard::create(const Plan &plan)
 	}
 
 	/*
-	 * One Canvas per camera. The Element that fills it is Phase 2's -- the
-	 * device id each Canvas was named for is stamped into the Job metadata so
-	 * task 2.1 can offer it rather than making the operator pick twice.
+	 * One Canvas per camera, with its Element already in it where the wizard
+	 * detected a device. Task 2.1 supplied the factory; before it, this loop
+	 * created empty Canvases and the operator had to add each camera by hand
+	 * immediately afterwards, having just named it here.
+	 *
+	 * A row with no device still gets its Canvas. A Job set up before the
+	 * hardware is fitted is a real case, and the naming is the part worth
+	 * keeping.
 	 */
 	for (int i = 0; i < plan.canvasNames.size(); i++) {
 		const QString &name = plan.canvasNames[i];
@@ -422,6 +446,18 @@ bool MCJobWizard::create(const Plan &plan)
 			blog(LOG_WARNING, "[MCJobWizard] Could not create Canvas '%s'", QT_TO_UTF8(name));
 			continue;
 		}
+
+		const QString deviceId = (i < plan.canvasDevices.size()) ? plan.canvasDevices[i] : QString();
+		if (deviceId.isEmpty()) {
+			continue;
+		}
+
+		MCCaptureDevices::Device device;
+		device.id = deviceId;
+		device.name = name;
+		device.sourceId = (i < plan.canvasSourceIds.size()) ? plan.canvasSourceIds[i] : QString();
+
+		MCVideoCaptureElement::addTo(scene, device, name);
 	}
 
 	blog(LOG_INFO, "[MCJobWizard] Created Job '%s' with %d Canvas(es), recording to '%s'",

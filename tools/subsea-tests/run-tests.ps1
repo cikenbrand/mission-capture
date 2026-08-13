@@ -62,7 +62,7 @@ $map = @{
 }
 
 if     ($Suite -eq 'all')   { $run = '0','1','2','3','4','5','6','7','8','9' }
-elseif ($Suite -eq 'quick') { $run = '0','1' }   # grows as suites land
+elseif ($Suite -eq 'quick') { $run = '0','1','2' }   # grows as suites land
 else                        { $run = @($Suite) }
 
 foreach ($s in $run) {

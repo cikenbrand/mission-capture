@@ -24,12 +24,15 @@
 #include "MCJobMetadata.hpp"
 #include "MCLayersModel.hpp"
 #include "MCRecordLock.hpp"
+#include "MCVideoCaptureElement.hpp"
 
 #include <OBSApp.hpp>
 #include <settings/OBSBasicSettings.hpp>
 #include <widgets/OBSBasic.hpp>
 
 #include <obs.h>
+
+#include <array>
 
 #include <QAction>
 #include <QDockWidget>
@@ -328,6 +331,47 @@ bool write(OBSBasic *main, const std::string &path)
 			devices.append(entry);
 		}
 		root["captureDevices"] = devices;
+	}
+
+	/* --- Capture Element factory (task 2.1) ------------------------------- */
+	/*
+	 * Run against synthetic devices rather than real ones. The mapping and the
+	 * settings are the whole of task 2.1, and on a machine with no capture card
+	 * they would otherwise go unverified until someone had one -- which, given
+	 * the cards vary job to job, could be never. These are pure functions, so
+	 * nothing is created and nothing is left behind.
+	 */
+	{
+		QJsonArray factory;
+
+		const std::array<std::pair<const char *, const char *>, 3> cases{{
+			{"decklink-input", "DeckLink"},
+			{"dshow_input", "DirectShow"},
+			/* The "there may be other capture cards" case from the plan. */
+			{"some-future-backend", "Unknown"},
+		}};
+
+		for (const auto &[backendId, label] : cases) {
+			MCCaptureDevices::Device probe;
+			probe.id = QStringLiteral("test-device-id");
+			probe.name = QStringLiteral("Test Device");
+			probe.sourceId = QString::fromUtf8(backendId);
+			probe.backend = QString::fromUtf8(label);
+
+			QJsonObject entry;
+			entry["given"] = probe.sourceId;
+			entry["resolvesTo"] = QString::fromUtf8(MCVideoCaptureElement::sourceIdFor(probe));
+
+			/* The settings object as libobs would hand it to the source --
+			 * parsed by the test rather than picked apart here, so the
+			 * assertion is against what is actually applied. */
+			OBSDataAutoRelease settings = MCVideoCaptureElement::settingsFor(probe);
+			entry["settingsJson"] = QString::fromUtf8(obs_data_get_json(settings));
+
+			factory.append(entry);
+		}
+
+		root["captureFactory"] = factory;
 	}
 
 	/* --- Settings dialog ------------------------------------------------ */

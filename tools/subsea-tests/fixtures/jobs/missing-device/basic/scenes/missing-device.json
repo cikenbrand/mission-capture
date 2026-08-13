@@ -1,0 +1,87 @@
+{
+    "current_scene": "Pilot Cam",
+    "current_program_scene": "Pilot Cam",
+    "name": "missing-device",
+    "scene_order": [
+        {
+            "name": "Pilot Cam"
+        }
+    ],
+    "sources": [
+        {
+            "id": "scene",
+            "versioned_id": "scene",
+            "name": "Pilot Cam",
+            "settings": {
+                "items": [
+                    {
+                        "name": "Pilot Cam Feed",
+                        "visible": true,
+                        "locked": false,
+                        "pos": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        }
+                    }
+                ],
+                "id_counter": 1
+            },
+            "mixers": 0,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
+            "muted": false,
+            "push-to-mute": false,
+            "push-to-mute-delay": 0,
+            "push-to-talk": false,
+            "push-to-talk-delay": 0,
+            "hotkeys": {},
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
+        },
+        {
+            "id": "dshow_input",
+            "versioned_id": "dshow_input",
+            "name": "Pilot Cam Feed",
+            "settings": {
+                "video_device_id": "Definitely Not A Real Capture Card",
+                "last_video_device_id": "Definitely Not A Real Capture Card",
+                "res_type": 0,
+                "frame_interval": 0,
+                "buffering": false,
+                "deactivate_when_not_showing": false
+            },
+            "mixers": 255,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
+            "muted": false,
+            "push-to-mute": false,
+            "push-to-mute-delay": 0,
+            "push-to-talk": false,
+            "push-to-talk-delay": 0,
+            "hotkeys": {},
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
+        }
+    ]
+}

@@ -77,7 +77,10 @@ private:
 		QString collectionName;
 		QString recordingPath;
 		QVector<QString> canvasNames;
-		QVector<QString> canvasDevices; /* Parallel to canvasNames; may be empty strings */
+		/* Both parallel to canvasNames; empty strings where the row had no
+		 * detected device, which is allowed. */
+		QVector<QString> canvasDevices;
+		QVector<QString> canvasSourceIds;
 	};
 
 	Plan collect() const;
