@@ -25,7 +25,7 @@ endforeach()
 
 function(add_obs_cmocka_test target)
   add_executable(${target} ${target}.c)
-  target_link_libraries(${target} PRIVATE OBS::libobs cmocka::cmocka)
+  target_link_libraries(${target} PRIVATE OBS::libobs cmocka::cmocka ${ARGN})
   set_target_properties(${target} PROPERTIES FOLDER tests)
   add_test(NAME ${target} COMMAND ${target})
 
@@ -51,3 +51,7 @@ add_obs_cmocka_test(test_serializer)
 add_obs_cmocka_test(test_darray)
 add_obs_cmocka_test(test_bitstream)
 add_obs_cmocka_test(test_os_path)
+
+# Mission Capture: the channel registry. Headless by design -- no window, no
+# device, no render loop -- so it runs in the same harness as the libobs tests.
+add_obs_cmocka_test(test_mc_channel OBS::mc-data)

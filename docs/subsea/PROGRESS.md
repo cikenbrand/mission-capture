@@ -187,7 +187,7 @@ Types: `bug` · `deferred` · `dependency` · `question` · `risk` · `debt`
 
 | ID | Task | Status | Done | Evidence | Notes |
 |---|---|---|---|---|---|
-| 3.1 | Channel registry | `todo` | | | Needs OI-4 · unblocks Phase 4 |
+| 3.1 | Channel registry | **`done`** | 2026-08-13 | `test_mc_channel` — 15 cmocka tests, all green; whole suite 5/5 | New static library `shared/mc-data`, headless by design: no window, no device, no render loop, so it tests in the same harness as libobs. **The concurrency test was verified by removing the registry mutex and watching it fail** — the first version of that test passed against the unlocked build, which is the same as not testing it. Three deliberate deviations from the plan's API sketch, each recorded in `phase-3-data-core.md`: `text` is a fixed array not a `const char *`; `publish` takes the fields rather than a `mc_value_t *`; `mc_registry_enum` dropped in favour of `snapshot` |
 | 3.2 | Frame assembler | `todo` | | | |
 | 3.3 | Parsers | `todo` | | | |
 | 3.4 | Channel transforms | `todo` | | | |

@@ -95,6 +95,34 @@ Design notes:
 
 **Test:** `test/cmocka/test_mc_channel.c`
 
+#### As built — three deviations from the sketch above
+
+Recorded because 3.2 onwards are written against this API, not against the sketch.
+
+1. **`text` is `char text[MC_TEXT_MAX + 1]`, not `const char *`.** The sketch asked for both a
+   pointer into registry storage *and* a guarantee that no raw pointer reaches the graphics
+   thread. Those cannot both hold. An array makes every `mc_value_t` self-contained, so a reader
+   owns its copy outright and there is no lifetime question to get wrong later. Tokens are capped
+   at 64 characters; a survey field longer than that is truncated rather than allocated for.
+
+2. **`publish` takes the fields, not a `mc_value_t *`:**
+   `mc_registry_publish(reg, name, numeric, text, quality)`. `ts_ns`, `wall_ns` and `seq` are the
+   registry's business — a caller that could set them could backdate a reading or fake a sequence
+   number, and both would be invisible in the recording afterwards. Scale and offset are applied
+   here too, so the caller passes what arrived on the wire and nothing downstream has to remember
+   to convert.
+
+3. **`mc_registry_enum` dropped; `mc_registry_snapshot` covers it.** Snapshot already returns every
+   channel under one lock, which is the property that matters. A callback invoked while the lock
+   is held deadlocks the moment someone writes a callback that reads a channel — an easy mistake
+   to make and a hard one to diagnose on a vessel. Snapshot now also returns names alongside
+   values, which is the only thing enum offered that it did not.
+
+**Verified, not assumed:** the concurrency test was checked against a build with the registry mutex
+removed. The obvious version of that test — short tokens, one writer — passed without any locking
+at all. It now uses three writers and 64-character tokens, and fails within a few thousand reads
+when the lock is gone.
+
 ---
 
 ### 3.2 — Frame assembler

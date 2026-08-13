@@ -29,6 +29,10 @@ if(NOT ENABLE_SCRIPTING)
 endif()
 
 add_subdirectory(libobs)
+
+# Mission Capture: the headless data core. After libobs because it uses the
+# portable platform helpers; before test/ and frontend/, which both link it.
+add_subdirectory(shared/mc-data)
 if(OS_WINDOWS)
   add_subdirectory(libobs-d3d11)
   add_subdirectory(libobs-winrt)
