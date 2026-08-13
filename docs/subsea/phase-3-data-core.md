@@ -14,19 +14,34 @@ This exists so [Phase 4](phase-4-overlay-editor.md) can bind `{DEPTH}` on day on
 > configuration UI can show four slots rather than an unbounded list, and so the engine can size
 > itself once at startup instead of growing.
 >
-> **1–10 Hz per device.** The design headroom below is deliberately larger; the figure that matters
-> is that this is *slow* data by any streaming standard. At 10 Hz across four devices the engine
-> sees forty frames a second, which is two orders of magnitude below the point where a
-> mutex-protected registry would need replacing with a seqlock. **So the hot path stays simple**, and
-> that decision is now evidence-based rather than assumed.
+> **10 Hz per device, as the expected rate.** Not a ceiling to survive but a figure to measure
+> against: a device configured for 10 Hz and delivering 3 is broken, and the engine can only say so
+> if it knows what to expect. This is the same reasoning as the per-Element frame rate in
+> [task 2.6](phase-2-video-elements.md#26--latency-and-health-measurement) — a rate that is merely
+> *observed* tells you nothing without a rate that was *intended*.
+>
+> Forty frames a second across four devices is also two orders of magnitude below the point where a
+> mutex-protected registry would need replacing with a seqlock. **So the hot path stays simple**,
+> and that is now an evidence-based decision rather than an assumption.
 >
 > **Each port is configured independently**: COM port, baud rate, data bits, stop bits, parity.
 > Four devices on one vessel will not agree on these, so they are per-device settings, not global.
 >
-> **The payload is positional comma-separated floats** — `1.031,5.132,6.122,…` — where position
-> *is* the meaning: heading, CP, northing, easting and so on. This makes the **Delimited** parser
-> in task 3.3 the primary one, and the index→channel map the thing that must be easy to get right
-> and hard to get silently wrong. Key/value and regex remain for the systems that do not conform.
+> **The payload is positional comma-separated floats** — `1.031,5.132,6.122,7.451`.
+>
+> **The parser does not know what the numbers mean, and must not try.** It extracts values by
+> position and nothing else. Meaning comes from an operator-configured map — index 0 → CP,
+> index 1 → KP, index 2 → Temperature — held in configuration, not in code.
+>
+> That separation is the design, not an implementation detail. Every survey system orders its
+> fields differently, so any meaning baked into the parser would be wrong on the next vessel. It
+> also puts validation in the right place: the parser can only report *"field 3 was not a number"*,
+> while the map is what can say *"nothing is assigned to index 3"*.
+>
+> The consequence for task 3.3 is that **Delimited** is the primary strategy and the index→channel
+> map is the artefact that must be easy to get right and hard to get silently wrong — a
+> mis-assignment yields plausible numbers under the wrong name, which is the error least likely to
+> be caught before it reaches a client. Key/value and regex remain for systems that do not conform.
 >
 > Working ceiling, sized well above the answers so nothing has to be revisited:
 > **≤ 64 channels across ≤ 4 devices, ≤ 20 Hz each.**
