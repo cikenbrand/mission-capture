@@ -147,7 +147,12 @@ A Rig template applied on first run:
   bitrate-targeted. Detect at first run and pick; don't make the operator choose
 - **Resolution/FPS:** match the capture source rather than forcing 1920×1080 — inspection cameras
   are frequently not 16:9
-- **Filename template:** `%JOB%_%CANVAS%_%CCYY%%MM%%DD%_%hh%%mm%%ss%`
+- **Filename template:** `%JOB%_%CANVAS%_%CCYY%MM%DD_%hh%mm%ss`
+  — **corrected 2026-08-13.** This originally read `…%CCYY%%MM%%DD%_%hh%%mm%%ss%`, which is wrong:
+  libobs' date tokens have no trailing delimiter and `%%` is an escaped percent, so that form
+  produced `2026%MM%DD`. `%JOB%` and `%CANVAS%` *are* closed with a second `%` — they are ours and
+  substituted before libobs sees the string. Shipped broken in 1.7 and found in 1.9b by recording
+  a real file
 - **Auto-split** on by default ([Phase 6](phase-6-multi-record.md) task 6.8)
 - **Audio:** one mic/comms channel, no desktop audio
 - Never auto-remux to a lossy container

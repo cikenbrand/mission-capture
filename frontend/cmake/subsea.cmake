@@ -11,6 +11,8 @@ target_sources(
     subsea/MCCaptureDevices.hpp
     subsea/MCDefaults.cpp
     subsea/MCDefaults.hpp
+    subsea/MCDiskSpace.cpp
+    subsea/MCDiskSpace.hpp
     subsea/MCElementTypes.cpp
     subsea/MCElementTypes.hpp
     subsea/MCFeatures.cpp

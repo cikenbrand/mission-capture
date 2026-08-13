@@ -35,9 +35,16 @@ namespace MCDefaults {
 
 namespace {
 
-/* Characters Windows forbids in a filename, plus the separators. A Job named
- * "Pipeline 12/A" must not silently become a subdirectory. */
-constexpr const char *kIllegal = "<>:\"/\\|?*";
+/*
+ * Characters Windows forbids in a filename, plus the separators. A Job named
+ * "Pipeline 12/A" must not silently become a subdirectory.
+ *
+ * '%' is in the list for a different reason: these values are substituted into
+ * a string that libobs then parses for its own date tokens, so a Job number
+ * containing a percent sign would be read as a malformed token rather than as
+ * text.
+ */
+constexpr const char *kIllegal = "<>:\"/\\|?*%";
 
 std::string sanitise(const char *raw, const char *fallback)
 {
@@ -104,11 +111,23 @@ void apply(config_t *config)
 	config_set_default_string(config, "SimpleOutput", "RecQuality", "HQ");
 
 	/*
-	 * Filename template. %JOB% and %CANVAS% are ours -- see expandTokens().
-	 * Ordered coarse to fine so a directory listing sorts by Job, then Canvas,
-	 * then time, which is how footage gets reviewed.
+	 * Filename template. Ordered coarse to fine so a directory listing sorts by
+	 * Job, then Canvas, then time, which is how footage gets reviewed.
+	 *
+	 * MIND THE DELIMITERS -- they are not the same on both halves.
+	 *
+	 * %JOB% and %CANVAS% are ours and are closed with a second %, because
+	 * expandTokens() below matches them literally. libobs' own date tokens are
+	 * NOT: os_generate_formatted_filename maps "%CCYY", "%MM", "%DD" with no
+	 * trailing delimiter, and treats "%%" as an escaped percent
+	 * (libobs/util/platform.c). Writing "%CCYY%%MM%%DD%" -- which is what task
+	 * 1.7 shipped -- therefore produced "2026%MM%DD": the first token expanded,
+	 * then each "%%" became a literal "%" and the rest stayed as text.
+	 *
+	 * It took recording an actual file to notice. Nothing that reads config can
+	 * tell a valid template from an invalid one.
 	 */
-	config_set_default_string(config, "Output", "FilenameFormatting", "%JOB%_%CANVAS%_%CCYY%%MM%%DD%_%hh%%mm%%ss%");
+	config_set_default_string(config, "Output", "FilenameFormatting", "%JOB%_%CANVAS%_%CCYY%MM%DD_%hh%mm%ss");
 
 	/*
 	 * Split recordings by default. A dive produces hours of footage, and one
@@ -171,6 +190,22 @@ void applyUserDefaults(config_t *userConfig)
 	 */
 	config_set_default_bool(userConfig, "BasicWindow", "WarnBeforeStoppingRecord", true);
 	config_set_default_int(userConfig, "BasicWindow", "WarnBeforeStoppingRecordAfter", 60);
+
+	/*
+	 * Disk-space thresholds, in whole GB on the recording volume.
+	 *
+	 * 10 GB is roughly twenty minutes at inspection bitrates -- enough notice
+	 * to swap a drive or clear space without ending the dive. 2 GB is "finish
+	 * what you are doing".
+	 *
+	 * 1 GB is where we stop. Upstream stops at 50 MB, which at 25 GB/hour is a
+	 * few seconds and leaves the muxer writing its trailer into whatever space
+	 * the last frame did not take. Stopping a minute early costs a minute of
+	 * footage; stopping too late costs the file.
+	 */
+	config_set_default_int(userConfig, "BasicWindow", "DiskCautionGB", 10);
+	config_set_default_int(userConfig, "BasicWindow", "DiskCriticalGB", 2);
+	config_set_default_int(userConfig, "BasicWindow", "DiskStopGB", 1);
 }
 
 std::string expandTokens(const char *format)

@@ -317,7 +317,7 @@ if ($rd) {
     Assert-True ($rd.'SimpleOutput/RecEncoder' -in @('nvenc', 'amd', 'x264')) `
                 "Recording encoder resolved to '$($rd.'SimpleOutput/RecEncoder')'" 'P1-AC10'
 
-    Assert-True ($rd.'Output/FilenameFormatting' -eq '%JOB%_%CANVAS%_%CCYY%%MM%%DD%_%hh%%mm%%ss%') `
+    Assert-True ($rd.'Output/FilenameFormatting' -eq '%JOB%_%CANVAS%_%CCYY%MM%DD_%hh%mm%ss') `
                 'Filename template is the inspection template' 'P1-AC10'
 
     # The tokens must actually resolve -- a template that survives into the
@@ -420,11 +420,111 @@ $lockFlag = @($manifest.features | Where-Object { $_.key -eq 'LockLayersWhileRec
 Assert-True ($lockFlag.Count -eq 1 -and $lockFlag[0].enabled -eq $true) `
             'Layers lock-while-recording is on by default' 'P1-AC12'
 
-# NOT ASSERTED HERE: the behaviour while a recording is actually running --
-# indicator visible, edits refused, override releasing them. That needs a live
-# recording, which an unattended manifest dump cannot produce. Covered by
-# OI-55, and 1.9b forces the issue: testing a disk-full stop needs exactly the
-# same harness.
+# --- P1-AC13: task 1.9b -- disk-space protection -----------------------------
+$disk = $rs.disk
+Assert-True ($null -ne $disk) 'Manifest records the disk-space state' 'P1-AC13'
+
+if ($disk) {
+    Assert-True ($disk.fieldPresent -eq $true) 'Free-space field is in the status bar' 'P1-AC13'
+    Assert-True ($disk.cautionGB -eq 10) "Caution threshold is 10 GB (got $($disk.cautionGB))" 'P1-AC13'
+    Assert-True ($disk.criticalGB -eq 2) "Critical threshold is 2 GB (got $($disk.criticalGB))" 'P1-AC13'
+
+    # Well above upstream's 50 MB, which leaves no room for the muxer to write
+    # its trailer -- the difference between a playable file and a lost one.
+    Assert-True ($disk.stopGB -ge 1) "Hard-stop floor is at least 1 GB (got $($disk.stopGB))" 'P1-AC13'
+    Assert-True ($disk.freeBytes -gt 0) 'Free space was read from the recording volume' 'P1-AC13'
+}
+
+# --- Thresholds escalate, tested by moving them rather than filling a disk ---
+# Set the caution threshold above the size of any real volume and it trips on
+# the next poll, through the production code path, with nothing faked.
+$userIni = Join-Path (Get-AppConfigDir) 'user.ini'
+Add-Content -Encoding utf8 $userIni "`n[BasicWindow]`nDiskCautionGB=100000`nDiskCriticalGB=99999`n"
+
+$escPath = Join-Path (Get-RunDir) 'ui-disk.json'
+$code = Invoke-App -AppArgs @('--dump-ui-manifest', '../../ui-disk.json') -TimeoutSec 120
+Assert-True ($code -eq 0) 'Manifest dump with raised disk thresholds exited cleanly' 'P1-AC13'
+
+if (Test-Path $escPath) {
+    $escDisk = (Get-Content $escPath -Raw | ConvertFrom-Json).recordingSafety.disk
+    Assert-True ($escDisk.level -eq 'critical') `
+                "Free space below the critical threshold reports 'critical' (got '$($escDisk.level)')" 'P1-AC13'
+} else {
+    Add-Failure 'No manifest produced with raised disk thresholds' 'P1-AC13'
+}
+
+# --- The hard stop, with a real recording (closes OI-55) ---------------------
+# --startrecording is upstream's own flag, so no test-only product code is
+# needed. With the floor set above the free space, the monitor must stop the
+# recording within a poll or two and leave a file that actually opens.
+$recDir = Join-Path (Get-RunDir) 'test-recordings'
+New-Item -ItemType Directory -Force -Path $recDir | Out-Null
+
+# Start empty, or a file left by an earlier run gets asserted against instead of
+# this one's -- which would keep passing after the feature broke.
+foreach ($stale in @(Get-ChildItem -LiteralPath $recDir -Filter *.mkv -ErrorAction SilentlyContinue)) {
+    [System.IO.File]::Delete($stale.FullName)
+}
+Add-Content -Encoding utf8 $userIni "DiskStopGB=99000`n"
+
+$profileIni = Get-ChildItem (Join-Path (Get-AppConfigDir) 'basic\profiles') -Recurse -Filter basic.ini |
+              Select-Object -First 1
+if ($profileIni) {
+    # Forward slashes deliberately. config-file unescapes backslash sequences
+    # when reading, so a Windows path whose next character happens to be 'r'
+    # or 'n' arrives mangled and the path is rejected as invalid. The rundir
+    # path is exactly such a case.
+    $iniPath = $recDir.Replace([char]92, '/')
+    Add-Content -Encoding utf8 $profileIni.FullName "`n[SimpleOutput]`nFilePath=$iniPath`n"
+}
+
+$recProc = $null
+try { $recProc = Start-App -AppArgs @('--startrecording') -ReadyTimeoutSec 90 } catch { Add-Skip "Could not start the app for the recording test: $_" 'P1-AC13' }
+
+if ($recProc) {
+    Start-Sleep -Seconds 12          # start, poll, stop, and flush
+    Stop-App -Process $recProc -GraceSec 25 | Out-Null
+
+    $produced = @(Get-ChildItem -LiteralPath $recDir -Filter *.mkv -ErrorAction SilentlyContinue)
+    Assert-True ($produced.Count -ge 1) "A recording file was produced ($($produced.Count) found)" 'P1-AC13'
+
+    if ($produced.Count -ge 1) {
+        Assert-True ($produced[0].Length -gt 1024) `
+                    ("Recording is $([math]::Round($produced[0].Length/1KB)) KB, not an empty stub") 'P1-AC13'
+
+        # The token bug that shipped in 1.7: every date token after the first
+        # stayed literal. A filename still containing '%' means it is back.
+        Assert-True ($produced[0].Name -notmatch '%') `
+                    "Filename tokens all expanded (got '$($produced[0].Name)')" 'P1-AC13'
+
+        # The assertion this whole task turns on. A file existing proves
+        # nothing -- an MKV truncated mid-write also exists. Probing it is what
+        # shows the muxer closed the file rather than the process dying with it
+        # open, which is the difference between usable footage and a lost dive.
+        $probe = Get-ChildItem (Join-Path $PSScriptRoot '..\..\.deps') -Recurse -Filter ffprobe.exe -EA SilentlyContinue |
+                 Select-Object -First 1
+        if ($probe) {
+            $info = & $probe.FullName -v error -show_entries format=format_name,duration `
+                        -of default=noprint_wrappers=1 $produced[0].FullName 2>&1
+            Assert-True ($LASTEXITCODE -eq 0) 'The recording opens cleanly (ffprobe)' 'P1-AC13'
+            Assert-True (($info -join ' ') -match 'matroska') `
+                        'The recording is a valid Matroska file' 'P1-AC13'
+        } else {
+            Add-Skip 'ffprobe not found in .deps; file integrity not verified' 'P1-AC13'
+        }
+    }
+
+    $recLog = Get-LatestLog
+    if ($recLog) {
+        $stopped = @(Select-String -Path $recLog -Pattern 'MCDiskSpace\] Stopping the recording')
+        Assert-True ($stopped.Count -ge 1) 'The disk floor stopped the recording' 'P1-AC13'
+
+        $started = @(Select-String -Path $recLog -Pattern 'Recording Start')
+        $ended = @(Select-String -Path $recLog -Pattern 'Recording Stop')
+        Assert-True ($started.Count -ge 1 -and $ended.Count -ge 1) `
+                    'Recording started and stopped through the normal path' 'P1-AC13'
+    }
+}
 
 # --- English is the only language offered ------------------------------------
 $localeIndex = Join-Path (Get-RunDir) 'data\obs-studio\locale.ini'

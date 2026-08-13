@@ -18,6 +18,7 @@
 #include "MCUIManifest.hpp"
 #include "MCCaptureDevices.hpp"
 #include "MCDefaults.hpp"
+#include "MCDiskSpace.hpp"
 #include "MCElementTypes.hpp"
 #include "MCFeatures.hpp"
 #include "MCJobMetadata.hpp"
@@ -291,6 +292,21 @@ bool write(OBSBasic *main, const std::string &path)
 		safety["warnBeforeStopping"] = config_get_bool(userConfig, "BasicWindow", "WarnBeforeStoppingRecord");
 		safety["warnAfterSeconds"] =
 			static_cast<int>(config_get_int(userConfig, "BasicWindow", "WarnBeforeStoppingRecordAfter"));
+
+		/* Disk space (task 1.9b). freeBytes is whatever the volume actually
+		 * reports, so a test asserts the *level* it produced against the
+		 * thresholds rather than a figure it cannot predict. */
+		QJsonObject disk;
+		auto *diskLabel = main->findChild<QWidget *>(QStringLiteral("diskSpaceLabel"));
+		disk["fieldPresent"] = diskLabel != nullptr;
+		disk["freeBytes"] = static_cast<double>(MCDiskSpace::lastFreeBytes());
+		disk["level"] = QString::fromUtf8(MCDiskSpace::levelName(MCDiskSpace::lastLevel()));
+
+		const MCDiskSpace::Thresholds t = MCDiskSpace::thresholds();
+		disk["cautionGB"] = static_cast<int>(t.cautionBytes / (1024ULL * 1024ULL * 1024ULL));
+		disk["criticalGB"] = static_cast<int>(t.criticalBytes / (1024ULL * 1024ULL * 1024ULL));
+		disk["stopGB"] = static_cast<int>(t.stopBytes / (1024ULL * 1024ULL * 1024ULL));
+		safety["disk"] = disk;
 
 		root["recordingSafety"] = safety;
 	}

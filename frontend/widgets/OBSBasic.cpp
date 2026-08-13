@@ -41,6 +41,7 @@
 #include <settings/OBSBasicSettings.hpp>
 #include <subsea/MCBranding.hpp>
 #include <subsea/MCDefaults.hpp>
+#include <subsea/MCDiskSpace.hpp>
 #include <subsea/MCJobMetadata.hpp>
 #include <subsea/MCJobWizard.hpp>
 #include <subsea/MCRecordIndicator.hpp>
@@ -1445,6 +1446,11 @@ void OBSBasic::OBSInit()
 	/* Mission Capture: File > New Job. Created before the flag pass below so
 	 * the pass and the UI manifest both see it. */
 	MCJobWizard::installMenuAction(this);
+
+	/* Mission Capture: free space on the recording volume, shown permanently
+	 * in the status bar. Needs the status bar and the config, both of which
+	 * exist by now. See frontend/subsea/MCDiskSpace.hpp. */
+	MCDiskSpace::install(this);
 
 	/* Mission Capture: the single seam for feature flags. Runs after the UI and
 	 * all docks exist, so every objectName the flag table names is findable.
