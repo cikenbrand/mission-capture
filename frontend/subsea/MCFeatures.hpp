@@ -117,6 +117,12 @@ enum class Feature {
 	/* Task 1.7, also behavioural: read by OBSBasic::CreateFirstRunSources(). */
 	DesktopAudio,
 
+	/* Task 1.8. Held back from 1.5 at the user's request until the New Job
+	 * wizard existed to replace them -- hiding them earlier would have left a
+	 * build with no way to create or switch a Job at all. */
+	ProfileMenu,
+	SceneCollectionMenu,
+
 	Count_
 };
 

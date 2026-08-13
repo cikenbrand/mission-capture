@@ -41,6 +41,8 @@
 #include <settings/OBSBasicSettings.hpp>
 #include <subsea/MCBranding.hpp>
 #include <subsea/MCDefaults.hpp>
+#include <subsea/MCJobMetadata.hpp>
+#include <subsea/MCJobWizard.hpp>
 #include <subsea/MCFeatures.hpp>
 #include <subsea/MCLayersTree.hpp>
 #include <subsea/MCUIManifest.hpp>
@@ -261,6 +263,15 @@ OBSBasic::OBSBasic(QWidget *parent) : OBSMainWindow(parent), undo_s(ui), ui(new 
 	QEvent::registerEventType(QEvent::User + QEvent::Close);
 
 	api = InitializeAPIInterface(this);
+
+	/*
+	 * Mission Capture: register the Job metadata callbacks here, not in
+	 * OBSApp. obs_frontend_add_preload_callback() is a silent no-op until the
+	 * frontend API object above exists -- registering earlier looked fine,
+	 * logged nothing, and left every Job loading without its paperwork. This
+	 * is still well before the first collection is activated in OBSInit.
+	 */
+	MCJobMetadata::init();
 
 	ui->setupUi(this);
 	ui->previewDisabledWidget->setVisible(false);
@@ -1332,7 +1343,15 @@ void OBSBasic::OBSInit()
 	}
 
 	if (!first_run && !has_last_version && !Active()) {
-		QMetaObject::invokeMethod(this, &OBSBasic::on_autoConfigure_triggered, Qt::QueuedConnection);
+		/*
+		 * Mission Capture: the New Job wizard replaces OBS's auto-configuration
+		 * wizard here as well as in the menu. Hiding the action was not enough
+		 * -- this path calls the slot directly, so a genuine first run still
+		 * got OBS's wizard, which tunes for streaming bitrate and knows nothing
+		 * about a Job. Never caught by the suites because --dump-ui-manifest
+		 * exits before the queued call runs.
+		 */
+		QMetaObject::invokeMethod(this, [this]() { MCJobWizard::run(this); }, Qt::QueuedConnection);
 	}
 
 #if (defined(_WIN32) || defined(__APPLE__)) && (OBS_RELEASE_CANDIDATE > 0 || OBS_BETA > 0)
@@ -1408,6 +1427,10 @@ void OBSBasic::OBSInit()
 
 	UpdatePreviewProgramIndicators();
 	OnFirstLoad();
+
+	/* Mission Capture: File > New Job. Created before the flag pass below so
+	 * the pass and the UI manifest both see it. */
+	MCJobWizard::installMenuAction(this);
 
 	/* Mission Capture: the single seam for feature flags. Runs after the UI and
 	 * all docks exist, so every objectName the flag table names is findable.

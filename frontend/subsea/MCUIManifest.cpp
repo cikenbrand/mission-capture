@@ -16,9 +16,11 @@
 ******************************************************************************/
 
 #include "MCUIManifest.hpp"
+#include "MCCaptureDevices.hpp"
 #include "MCDefaults.hpp"
 #include "MCElementTypes.hpp"
 #include "MCFeatures.hpp"
+#include "MCJobMetadata.hpp"
 #include "MCLayersModel.hpp"
 
 #include <OBSApp.hpp>
@@ -249,6 +251,44 @@ bool write(OBSBasic *main, const std::string &path)
 		defaults["audioChannels"] = audioChannels;
 
 		root["recordingDefaults"] = defaults;
+	}
+
+	/* --- Job metadata (task 1.8) ----------------------------------------- */
+	/* Read back through the same preload callback the wizard's output goes
+	 * through, so this proves the round-trip rather than echoing what was just
+	 * written. Phase 8's manifest reads exactly these fields. */
+	{
+		const MCJobMetadata::Job &job = MCJobMetadata::current();
+
+		QJsonObject entry;
+		entry["number"] = job.number;
+		entry["client"] = job.client;
+		entry["vessel"] = job.vessel;
+		entry["system"] = job.system;
+		entry["notes"] = job.notes;
+		entry["created"] = job.created;
+		entry["empty"] = job.isEmpty();
+
+		root["jobMetadata"] = entry;
+	}
+
+	/* --- Capture devices -------------------------------------------------- */
+	/* Recorded mainly so the enumeration itself is exercised. It is otherwise
+	 * only reached when the wizard's camera page opens, which no unattended run
+	 * does -- and it queries property lists from plugins that may have failed
+	 * to initialise, which is precisely the case worth running on every build.
+	 * An empty list is a valid result on a machine with no capture hardware. */
+	{
+		QJsonArray devices;
+		for (const MCCaptureDevices::Device &device : MCCaptureDevices::enumerate()) {
+			QJsonObject entry;
+			entry["id"] = device.id;
+			entry["name"] = device.name;
+			entry["sourceId"] = device.sourceId;
+			entry["backend"] = device.backend;
+			devices.append(entry);
+		}
+		root["captureDevices"] = devices;
 	}
 
 	/* --- Settings dialog ------------------------------------------------ */

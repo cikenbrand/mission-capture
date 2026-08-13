@@ -339,6 +339,59 @@ if ($rd) {
                 "A new Job has at most one global audio channel (got $($channels.Count))" 'P1-AC10'
 }
 
+# --- P1-AC11: task 1.8 -- the Job wizard and its metadata --------------------
+
+# File > New Job must exist and be reachable. It is created in code rather than
+# in OBSBasic.ui, so a silent failure here would leave no way to start a Job.
+$newJob = @($manifest.actions | Where-Object { $_.name -eq 'actionNewJob' })
+Assert-True ($newJob.Count -eq 1) 'File > New Job action exists and is visible' 'P1-AC11'
+if ($newJob.Count -eq 1) {
+    Assert-True ($newJob[0].text -eq 'New Job') "New Job is labelled correctly (got '$($newJob[0].text)')" 'P1-AC11'
+}
+
+# The Rig menu retires now that the wizard creates one with the Job. The Job
+# menu deliberately stays: it is still the only way to switch between existing
+# Jobs (OI-51).
+$hiddenMenus2 = @($manifest.menus | Where-Object { -not $_.visible } | ForEach-Object { $_.name })
+Assert-True ($hiddenMenus2 -contains 'profileMenu') 'Rig menu is retired' 'P1-AC11'
+$jobMenu = @($manifest.menus | Where-Object { $_.name -eq 'sceneCollectionMenu' })
+Assert-True ($jobMenu.Count -eq 1 -and $jobMenu[0].visible) `
+            'Job menu stays until there is another way to switch Jobs' 'P1-AC11'
+
+# A Job with no metadata reports empty rather than inventing values.
+Assert-True ($manifest.jobMetadata.empty -eq $true) `
+            'A Job created outside the wizard has no metadata' 'P1-AC11'
+
+# Device enumeration must survive a machine where a backend failed to load --
+# DeckLink does exactly that without its drivers, which is the common case on a
+# desk and on a CI runner. An empty list is a pass; a crash or a missing key is
+# not. The manifest runs it on every dump so this is genuinely exercised.
+Assert-True ($null -ne $manifest.captureDevices) `
+            "Capture device enumeration ran ($(@($manifest.captureDevices).Count) found)" 'P1-AC11'
+
+# --- Metadata round-trip -----------------------------------------------------
+# Read back through the preload callback from a Job file on disk, which is the
+# same path a real Job takes and the one Phase 8's manifest will depend on.
+Copy-Fixture -Relative 'jobs\job-meta'
+
+$metaManifest = Join-Path (Get-RunDir) 'ui-job-meta.json'
+if (Test-Path $metaManifest) { Remove-Item -Force $metaManifest }
+
+$code = Invoke-App -AppArgs @('--collection', 'job-meta', '--dump-ui-manifest', '../../ui-job-meta.json') -TimeoutSec 120
+Assert-True ($code -eq 0) 'Manifest dump with the job-meta fixture exited cleanly' 'P1-AC11'
+
+if (Test-Path $metaManifest) {
+    $jm = (Get-Content $metaManifest -Raw | ConvertFrom-Json).jobMetadata
+    Assert-True ($jm.empty -eq $false) 'Job metadata survives a save/load round-trip' 'P1-AC11'
+    Assert-True ($jm.number -eq 'CR-2026-014')          "Job number read back (got '$($jm.number)')" 'P1-AC11'
+    Assert-True ($jm.client -eq 'Northern Subsea Ltd')  "Client read back (got '$($jm.client)')" 'P1-AC11'
+    Assert-True ($jm.vessel -eq 'MV Aurora')            "Vessel read back (got '$($jm.vessel)')" 'P1-AC11'
+    Assert-True ($jm.system -eq 'Work-class ROV 2')     "System read back (got '$($jm.system)')" 'P1-AC11'
+    Assert-True ($jm.created -eq '2026-08-13T09:15:00Z') 'Creation timestamp read back' 'P1-AC11'
+} else {
+    Add-Failure 'No manifest produced for the job-meta fixture' 'P1-AC11'
+}
+
 # --- English is the only language offered ------------------------------------
 $localeIndex = Join-Path (Get-RunDir) 'data\obs-studio\locale.ini'
 if (Test-Path $localeIndex) {

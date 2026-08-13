@@ -7,12 +7,18 @@ target_sources(
   obs-studio
   PRIVATE
     subsea/MCBranding.hpp
+    subsea/MCCaptureDevices.cpp
+    subsea/MCCaptureDevices.hpp
     subsea/MCDefaults.cpp
     subsea/MCDefaults.hpp
     subsea/MCElementTypes.cpp
     subsea/MCElementTypes.hpp
     subsea/MCFeatures.cpp
     subsea/MCFeatures.hpp
+    subsea/MCJobMetadata.cpp
+    subsea/MCJobMetadata.hpp
+    subsea/MCJobWizard.cpp
+    subsea/MCJobWizard.hpp
     subsea/MCLayersDelegate.cpp
     subsea/MCLayersDelegate.hpp
     subsea/MCLayersModel.cpp

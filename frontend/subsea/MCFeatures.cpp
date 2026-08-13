@@ -201,6 +201,21 @@ const std::array<FeatureDef, static_cast<size_t>(Feature::Count_)> featureTable{
 	 false,
 	 "Capture desktop audio on a new Job, in addition to the comms mic",
 	 {}},
+
+	/* Task 1.8 replaced both with File > New Job. Switching between existing
+	 * Jobs still needs a home -- Scene Collection's list is the only route
+	 * today -- so SceneCollectionMenu stays ON until that lands, and only the
+	 * Rig menu retires. Tracked as OI-51. */
+	{Feature::ProfileMenu,
+	 "ProfileMenu",
+	 false,
+	 "Rig menu; a Rig is created with its Job by the New Job wizard",
+	 {"profileMenu"}},
+	{Feature::SceneCollectionMenu,
+	 "SceneCollectionMenu",
+	 true,
+	 "Job menu; still the only way to switch between existing Jobs",
+	 {"sceneCollectionMenu"}},
 }};
 
 /* Resolved state, and whether it came from features.ini or the compiled default. */
