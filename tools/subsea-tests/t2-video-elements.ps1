@@ -196,6 +196,12 @@ if (Test-Path $missingManifest) {
             # misleading, and it is a different problem from one that dropped.
             Assert-True ($watched[0].state -eq 'unknown') `
                         "A camera that never connected is not reported as lost (got '$($watched[0].state)')" 'P2-AC5'
+
+            # 2.6: frame rate is reported per Element, and is measured rather
+            # than read from the source's declared setting -- a camera set to
+            # 25 and delivering 12 is the fault found in review, not on the dive.
+            Assert-True ($null -ne $watched[0].fps) 'Frame rate is reported per Element' 'P2-AC7'
+            Assert-True ($watched[0].fps -eq 0) 'An absent camera measures 0 fps' 'P2-AC7'
         }
     }
 }
@@ -230,6 +236,16 @@ if ($rtsp) {
     Assert-True ($opts.udp -match 'rtsp_transport=udp') 'UDP remains available' 'P2-AC6'
     Assert-True ($opts.lowest -match 'low_delay') 'The Lowest preset asks FFmpeg for low delay' 'P2-AC6'
     Assert-True ($opts.stable -notmatch 'nobuffer') 'The Most stable preset lets FFmpeg buffer' 'P2-AC6'
+}
+
+# --- P2-AC7: task 2.6 -- per-Element health ----------------------------------
+$healthDock = @($manifest.docks | Where-Object { $_.name -eq 'healthDock' })
+Assert-True ($healthDock.Count -eq 1) 'Health panel is registered as a dock' 'P2-AC7'
+if ($healthDock.Count -eq 1) {
+    # Hidden by default, like the Stats dock it replaces. The Layers tree
+    # already shows a lost camera without anyone opening anything.
+    Assert-True ($healthDock[0].visible -eq $false) 'Health panel is hidden until asked for' 'P2-AC7'
+    Assert-True ($healthDock[0].title -eq 'Health') "Health panel is titled correctly (got '$($healthDock[0].title)')" 'P2-AC7'
 }
 
 # Checked here, before the live test below: that test kills a stream on purpose,
@@ -274,6 +290,7 @@ if ($null -eq (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
             $lost = @(Select-String -Path $swLog -Pattern 'SIGNAL LOST')
 
             Assert-True ($acquired.Count -ge 1) 'Frames from a live source are detected' 'P2-AC5'
+
             # The assertion task 2.3 turns on, and the one that was unverifiable
             # until this fixture existed.
             Assert-True ($lost.Count -ge 1) 'A source that stops sending is reported as lost' 'P2-AC5'

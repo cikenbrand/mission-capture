@@ -45,6 +45,7 @@
 #include <subsea/MCJobMetadata.hpp>
 #include <subsea/MCJobWizard.hpp>
 #include <subsea/MCRecordIndicator.hpp>
+#include <subsea/MCHealthDock.hpp>
 #include <subsea/MCSignalWatch.hpp>
 
 #include <QVBoxLayout>
@@ -1466,6 +1467,10 @@ void OBSBasic::OBSInit()
 	/* Mission Capture: start watching capture Elements for signal loss. After
 	 * the Job has loaded, so the Elements it contains are picked up. */
 	MCSignalWatch::start();
+
+	/* Mission Capture: the Health panel, which replaces upstream's Stats dock.
+	 * After the watch starts so it has something to show. */
+	MCHealthDock::install(this);
 
 	/* Mission Capture: --dump-ui-manifest writes the UI description and exits,
 	 * so the harness can diff it against a golden file. Must come after

@@ -21,6 +21,8 @@ target_sources(
     subsea/MCElementTypes.hpp
     subsea/MCFeatures.cpp
     subsea/MCFeatures.hpp
+    subsea/MCHealthDock.cpp
+    subsea/MCHealthDock.hpp
     subsea/MCJobMetadata.cpp
     subsea/MCJobMetadata.hpp
     subsea/MCJobWizard.cpp

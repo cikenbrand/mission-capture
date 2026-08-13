@@ -452,6 +452,9 @@ bool write(OBSBasic *main, const std::string &path)
 			entry["element"] = status.elementName;
 			entry["sourceId"] = status.sourceId;
 			entry["frames"] = static_cast<double>(status.frames);
+			/* Measured over the last sampling interval, not the rate the
+			 * source claims -- see MCHealthDock. */
+			entry["fps"] = status.fps;
 			switch (status.state) {
 			case MCSignalWatch::State::Receiving:
 				entry["state"] = "receiving";

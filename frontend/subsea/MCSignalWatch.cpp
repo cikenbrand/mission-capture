@@ -47,6 +47,14 @@ struct Watch {
 	std::atomic<quint64> frames{0};
 	quint64 lastSampled = 0;
 	uint64_t lastFrameNs = 0;
+
+	/* Frames per second measured over the last sampling interval, not read
+	 * from the source's declared rate. A camera configured for 25 fps that is
+	 * delivering 12 is the exact fault an operator needs to see, and the
+	 * declared figure would hide it. */
+	double fps = 0.0;
+	uint64_t lastFpsNs = 0;
+	quint64 lastFpsFrames = 0;
 	State state = State::Unknown;
 
 	/* The filter itself. Held as a raw pointer deliberately: the filter owns
@@ -228,6 +236,15 @@ void sample()
 
 		const quint64 total = watch->frames.load(std::memory_order_relaxed);
 		const bool advanced = total != watch->lastSampled;
+
+		if (watch->lastFpsNs != 0) {
+			const double seconds = static_cast<double>(now - watch->lastFpsNs) / 1e9;
+			if (seconds > 0.0) {
+				watch->fps = static_cast<double>(total - watch->lastFpsFrames) / seconds;
+			}
+		}
+		watch->lastFpsNs = now;
+		watch->lastFpsFrames = total;
 
 		if (advanced) {
 			watch->lastFrameNs = now;
