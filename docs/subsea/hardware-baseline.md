@@ -132,14 +132,19 @@ multi-camera is a real requirement, that is the case to re-measure first on the 
   different instance name. The figure is missing, not zero. Worth fixing before the real run.
 - **Encode only.** No capture, compositing, overlay rendering, or muxing ran alongside. Real
   recording adds all of those; expect meaningfully lower headroom.
-- **No capture hardware.** OI-6 is untouched — see below.
+- **No capture hardware**, and by decision none is required — see below.
 
 ---
 
 ## Capture hardware
 
-Nothing was connected at the time of measurement, so the inventory OI-6 asks for is not yet
-possible. Two things worth recording now:
+**No inventory is being taken (decided 2026-08-13).** The cards vary job to job, they already work
+in OBS, and this fork does not modify the capture backends -- so listing models would describe
+somebody else's tested code and still not cover whatever turns up on the next vessel. Phase 2 is
+validated on recording integrity instead; see its acceptance criteria.
+
+Two facts still worth recording, because they are deployment prerequisites rather than model
+trivia:
 
 - **UVC / DirectShow devices work without driver installation.** AVerMedia, Elgato and generic
   HDMI grabbers use the Windows class driver and are enumerated by `win-dshow` immediately.

@@ -133,17 +133,43 @@ The Overlay button is stubbed here and wired in [Phase 4](phase-4-overlay-editor
 
 ## Acceptance criteria
 
-- [ ] A DeckLink and an AVerMedia device can both be added through one picker without the user
-      knowing which backend is involved
-- [ ] DeckLink auto input-format detection works; manual override available
+**Scope decision, 2026-08-13.** No specific capture hardware is being validated. The cards in the
+field will vary job to job, they already work in OBS, and this fork does not touch the capture
+backends — so a matrix of models would test somebody else's code and still not cover the card that
+turns up on the next vessel. **What matters is that the recording survives whatever the device
+does.** The criteria below are split accordingly.
+
+That is a narrowing of testing, not of the feature. Task 2.3 (device loss and recovery) gets *more*
+important under this decision, not less: if the specific card cannot be pre-validated, then
+behaving correctly when an arbitrary one misbehaves is the only guarantee available.
+
+### Automated — recording integrity, no capture hardware needed
+
+A killable RTSP source stands in for a failing device. It produces the same symptoms — frames stop,
+the source goes away, the source comes back — through the same Element and recording paths, and it
+can be scripted.
+
 - [ ] An RTSP camera connects and displays within 3 seconds of adding it
 - [ ] RTSP end-to-end latency under 500 ms on a LAN with the Lowest preset
-- [ ] Pulling and restoring an SDI cable recovers automatically, with a visible banner throughout
-- [ ] Unplugging and replugging a USB capture device recovers automatically
-- [ ] A device dropping mid-recording does not truncate or corrupt the file
+- [ ] Killing the source mid-recording does not truncate or corrupt the file —
+      **it must still probe clean**, as in [1.9b](phase-1-shell-and-layers.md#19b--disk-space-protection)
+- [ ] The source returning mid-recording resumes into the *same* file, with the gap visible in the
+      log and no second file created
+- [ ] A source that never connects does not prevent a recording from starting or stopping cleanly
 - [ ] RTSP credentials never appear in any log line or manifest
 - [ ] Add Element offers exactly three choices
 - [ ] Per-Element received frame rate is visible and accurate
+
+### Field checks — confirmed on real hardware, once, by an operator
+
+Written down so they are consciously deferred rather than quietly skipped. None of them gate the
+phase; all of them belong in a short pre-release checklist.
+
+- [ ] A DeckLink and a DirectShow device can both be added through one picker without the user
+      knowing which backend is involved
+- [ ] DeckLink auto input-format detection works; manual override available
+- [ ] Pulling and restoring an SDI cable recovers automatically, with a visible banner throughout
+- [ ] Unplugging and replugging a USB capture device recovers automatically
 
 ---
 
