@@ -55,3 +55,4 @@ add_obs_cmocka_test(test_os_path)
 # Mission Capture: the channel registry. Headless by design -- no window, no
 # device, no render loop -- so it runs in the same harness as the libobs tests.
 add_obs_cmocka_test(test_mc_channel OBS::mc-data)
+add_obs_cmocka_test(test_mc_frame OBS::mc-data)

@@ -144,6 +144,37 @@ spewing bytes with no delimiter cannot grow the buffer without bound.
 **Test:** `test/cmocka/test_mc_frame.c` — feed byte streams chopped at every possible boundary
 and assert identical framing regardless of chunking. This is the classic place bugs hide.
 
+#### As built
+
+- **Time is an argument, not a clock read.** `mc_frame_push` and `mc_frame_tick` take `now_ns`,
+  so idle-timeout framing is tested exactly and instantly rather than with sleeps. The transport
+  passes `os_gettime_ns()`; the tests pass whatever they like.
+- **Not thread-safe, deliberately** — the opposite choice from the channel registry, and for a
+  reason: an assembler belongs to the single transport thread reading its port. A lock here would
+  guard against a design nobody should build.
+- **Framing bytes are stripped, and nothing else is.** No delimiter, no sentinels. The assembler
+  stays literal otherwise: a device sending CRLF while configured for `\n` yields frames with a
+  trailing `\r`, and trimming that is the parser's job. Silently removing bytes it was not told
+  about would corrupt fixed-length binary framing.
+- **Sentinel frames exclude both sentinels**, so every mode hands the parser the same shape. Note
+  for later: this discards an NMEA checksum trailing the `*`. Nothing verifies checksums today; if
+  that is ever wanted, the assembler is where it goes.
+- **Blank frames are never emitted.** Two delimiters in a row is not a reading, and passing it on
+  becomes a row of BAD values on screen.
+- **Over-length frames are dropped, never truncated**, and the assembler resynchronises to the next
+  delimiter. Half a survey string parses as a plausible position rather than as an obvious fault.
+  `mc_frame_dropped()` counts them, because a climbing drop count is what a wrong baud rate or a
+  wrong delimiter looks like from the health panel.
+
+**Verified, not assumed:** the exhaustive chunking harness was checked by breaking the assembler —
+dropping partial state between reads. It fails at split `[1,8]` and reports that split by name,
+while a single whole-stream push passes clean. That gap is precisely the bug this harness exists
+to catch.
+
+**Known limit — OI-64:** a stream joined partway through a frame delivers that remainder as a
+properly terminated frame, and no framing layer can tell it from a short real one. 3.3's parser
+must reject rows whose field count does not match the configured channel map.
+
 ---
 
 ### 3.3 — Parsers
