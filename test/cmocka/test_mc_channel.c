@@ -457,6 +457,264 @@ static void test_concurrent_publish_and_read(void **state)
 	assert_true(final.seq > 0);
 }
 
+/* --- 3.4: transforms ---------------------------------------------------- */
+
+static mc_channel_def_t ranged_def(const char *name, double min, double max)
+{
+	mc_channel_def_t def = make_def(name, 1.0, 0.0, 0);
+	def.has_range = true;
+	def.min = min;
+	def.max = max;
+	return def;
+}
+
+static void test_out_of_range_flags_but_never_alters(void **state)
+{
+	(void)state;
+	mc_registry_t *reg = mc_registry_get();
+
+	const mc_channel_def_t def = ranged_def("DEPTH", 0.0, 500.0);
+	assert_true(mc_registry_declare(reg, &def));
+
+	mc_registry_publish(reg, "DEPTH", 900.0, "900", MC_QUALITY_GOOD);
+
+	mc_value_t value;
+	assert_true(mc_registry_read(reg, "DEPTH", &value));
+
+	/*
+	 * The whole point. Clipping 900 to the configured 500 would write a depth
+	 * the instrument never reported into the recording, and no reviewer could
+	 * tell it had been invented.
+	 */
+	assert_float_equal(value.numeric, 900.0, 0.0001);
+	assert_true(value.out_of_range);
+
+	/* Still a real, fresh reading -- implausible is not the same as unreadable. */
+	assert_int_equal(value.quality, MC_QUALITY_GOOD);
+}
+
+static void test_range_flag_clears_when_back_inside(void **state)
+{
+	(void)state;
+	mc_registry_t *reg = mc_registry_get();
+
+	const mc_channel_def_t def = ranged_def("DEPTH", 0.0, 500.0);
+	assert_true(mc_registry_declare(reg, &def));
+
+	mc_registry_publish(reg, "DEPTH", 900.0, "900", MC_QUALITY_GOOD);
+	mc_registry_publish(reg, "DEPTH", 120.0, "120", MC_QUALITY_GOOD);
+
+	mc_value_t value;
+	assert_true(mc_registry_read(reg, "DEPTH", &value));
+	assert_false(value.out_of_range);
+
+	/* Both edges are inclusive: a reading exactly at the limit is in range. */
+	mc_registry_publish(reg, "DEPTH", 500.0, "500", MC_QUALITY_GOOD);
+	assert_true(mc_registry_read(reg, "DEPTH", &value));
+	assert_false(value.out_of_range);
+
+	mc_registry_publish(reg, "DEPTH", -0.001, "-0.001", MC_QUALITY_GOOD);
+	assert_true(mc_registry_read(reg, "DEPTH", &value));
+	assert_true(value.out_of_range);
+}
+
+static void test_range_is_checked_after_scale_and_offset(void **state)
+{
+	(void)state;
+	mc_registry_t *reg = mc_registry_get();
+
+	/* Centimetres in, metres out, envelope in metres. The pipeline order is
+	 * parse -> scale -> offset -> clamp, so 45000 cm is 450 m and in range. */
+	mc_channel_def_t def = ranged_def("DEPTH", 0.0, 500.0);
+	def.scale = 0.01;
+	assert_true(mc_registry_declare(reg, &def));
+
+	mc_registry_publish(reg, "DEPTH", 45000.0, "45000", MC_QUALITY_GOOD);
+
+	mc_value_t value;
+	assert_true(mc_registry_read(reg, "DEPTH", &value));
+	assert_float_equal(value.numeric, 450.0, 0.0001);
+	assert_false(value.out_of_range);
+}
+
+static void test_bad_reading_is_not_out_of_range(void **state)
+{
+	(void)state;
+	mc_registry_t *reg = mc_registry_get();
+
+	const mc_channel_def_t def = ranged_def("DEPTH", 0.0, 500.0);
+	assert_true(mc_registry_declare(reg, &def));
+
+	mc_registry_publish(reg, "DEPTH", 900.0, "900", MC_QUALITY_GOOD);
+	mc_registry_publish(reg, "DEPTH", 0.0, "junk", MC_QUALITY_BAD);
+
+	/* An unreadable field is not an implausible one, and the stale flag from
+	 * the previous reading must not linger. */
+	mc_value_t value;
+	assert_true(mc_registry_read(reg, "DEPTH", &value));
+	assert_int_equal(value.quality, MC_QUALITY_BAD);
+	assert_false(value.out_of_range);
+}
+
+static void test_format_applies_precision_and_unit(void **state)
+{
+	(void)state;
+	mc_registry_t *reg = mc_registry_get();
+
+	mc_channel_def_t def = make_def("DEPTH", 1.0, 0.0, 0);
+	def.has_precision = true;
+	def.precision = 2;
+	strncpy(def.unit, "m", MC_UNIT_MAX);
+	assert_true(mc_registry_declare(reg, &def));
+
+	mc_registry_publish(reg, "DEPTH", 12.3456, "12.3456", MC_QUALITY_GOOD);
+
+	char out[64];
+	assert_true(mc_registry_format(reg, "DEPTH", true, out, sizeof(out)) > 0);
+	assert_string_equal(out, "12.35 m");
+
+	assert_true(mc_registry_format(reg, "DEPTH", false, out, sizeof(out)) > 0);
+	assert_string_equal(out, "12.35");
+
+	/* Display only: the stored value keeps every digit, because the sidecar
+	 * log is what a client receives. */
+	mc_value_t value;
+	assert_true(mc_registry_read(reg, "DEPTH", &value));
+	assert_float_equal(value.numeric, 12.3456, 0.000001);
+	assert_string_equal(value.text, "12.3456");
+}
+
+static void test_format_without_precision_keeps_the_token(void **state)
+{
+	(void)state;
+	mc_registry_t *reg = mc_registry_get();
+
+	const mc_channel_def_t def = make_def("DEPTH", 1.0, 0.0, 0);
+	assert_true(mc_registry_declare(reg, &def));
+
+	mc_registry_publish(reg, "DEPTH", 12.30, "12.30", MC_QUALITY_GOOD);
+
+	/* The survey system wrote a trailing zero; it meant it. Reformatting to
+	 * "12.3" quietly claims less precision than was reported. */
+	char out[64];
+	assert_true(mc_registry_format(reg, "DEPTH", false, out, sizeof(out)) > 0);
+	assert_string_equal(out, "12.30");
+}
+
+static void test_format_shows_no_reading_for_gaps(void **state)
+{
+	(void)state;
+	mc_registry_t *reg = mc_registry_get();
+
+	mc_channel_def_t def = make_def("DEPTH", 1.0, 0.0, 0);
+	strncpy(def.unit, "m", MC_UNIT_MAX);
+	assert_true(mc_registry_declare(reg, &def));
+
+	char out[64];
+
+	/* Never published. Must not read as "0 m". */
+	assert_true(mc_registry_format(reg, "DEPTH", true, out, sizeof(out)) > 0);
+	assert_string_equal(out, MC_NO_READING);
+
+	mc_registry_publish(reg, "DEPTH", 0.0, "junk", MC_QUALITY_BAD);
+	assert_true(mc_registry_format(reg, "DEPTH", true, out, sizeof(out)) > 0);
+	assert_string_equal(out, MC_NO_READING);
+}
+
+static void test_stale_action_decides_what_is_shown(void **state)
+{
+	(void)state;
+	mc_registry_t *reg = mc_registry_get();
+
+	mc_channel_def_t shown = make_def("DEPTH", 1.0, 0.0, 20);
+	shown.has_precision = true;
+	shown.precision = 1;
+	assert_true(mc_registry_declare(reg, &shown));
+
+	mc_channel_def_t blanked = make_def("HEADING", 1.0, 0.0, 20);
+	blanked.stale_action = MC_STALE_BLANK;
+	blanked.has_precision = true;
+	blanked.precision = 1;
+	assert_true(mc_registry_declare(reg, &blanked));
+
+	mc_registry_publish(reg, "DEPTH", 12.0, "12.0", MC_QUALITY_GOOD);
+	mc_registry_publish(reg, "HEADING", 180.0, "180.0", MC_QUALITY_GOOD);
+
+	os_sleep_ms(40);
+
+	char out[64];
+
+	/* Kept on screen, for the overlay to grey out. An old depth is still
+	 * information. */
+	assert_true(mc_registry_format(reg, "DEPTH", false, out, sizeof(out)) > 0);
+	assert_string_equal(out, "12.0");
+
+	/* Blanked, for a channel where an old number actively misleads. */
+	assert_true(mc_registry_format(reg, "HEADING", false, out, sizeof(out)) > 0);
+	assert_string_equal(out, MC_NO_READING);
+}
+
+static void test_format_of_a_text_channel(void **state)
+{
+	(void)state;
+	mc_registry_t *reg = mc_registry_get();
+
+	mc_channel_def_t def = make_def("Time", 1.0, 0.0, 0);
+	def.has_precision = true;
+	def.precision = 2;
+	assert_true(mc_registry_declare(reg, &def));
+
+	/* Precision is meaningless for a timestamp; the token stands. */
+	mc_registry_publish(reg, "Time", NAN, "12:01", MC_QUALITY_GOOD);
+
+	char out[64];
+	assert_true(mc_registry_format(reg, "Time", false, out, sizeof(out)) > 0);
+	assert_string_equal(out, "12:01");
+}
+
+static void test_format_never_overruns_a_small_buffer(void **state)
+{
+	(void)state;
+	mc_registry_t *reg = mc_registry_get();
+
+	mc_channel_def_t def = make_def("DEPTH", 1.0, 0.0, 0);
+	def.has_precision = true;
+	def.precision = 4;
+	strncpy(def.unit, "metres", MC_UNIT_MAX);
+	assert_true(mc_registry_declare(reg, &def));
+
+	mc_registry_publish(reg, "DEPTH", 12345.6789, "12345.6789", MC_QUALITY_GOOD);
+
+	char out[8];
+	memset(out, 'X', sizeof(out));
+
+	const size_t written = mc_registry_format(reg, "DEPTH", true, out, sizeof(out));
+
+	assert_true(written < sizeof(out));
+	assert_int_equal(out[sizeof(out) - 1], '\0');
+	assert_int_equal(strlen(out), written);
+}
+
+static void test_read_def_returns_the_definition(void **state)
+{
+	(void)state;
+	mc_registry_t *reg = mc_registry_get();
+
+	mc_channel_def_t def = ranged_def("DEPTH", 0.0, 500.0);
+	strncpy(def.unit, "m", MC_UNIT_MAX);
+	assert_true(mc_registry_declare(reg, &def));
+
+	/* The CSV writer needs the unit for a column header, the overlay needs it
+	 * beside the number. */
+	mc_channel_def_t got;
+	assert_true(mc_registry_read_def(reg, "DEPTH", &got));
+	assert_string_equal(got.unit, "m");
+	assert_true(got.has_range);
+	assert_float_equal(got.max, 500.0, 0.0001);
+
+	assert_false(mc_registry_read_def(reg, "NEVER_DECLARED", &got));
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -475,6 +733,17 @@ int main(void)
 		cmocka_unit_test_setup(test_snapshot_respects_max, setup),
 		cmocka_unit_test_setup(test_channel_cap_is_enforced, setup),
 		cmocka_unit_test_setup(test_concurrent_publish_and_read, setup),
+		cmocka_unit_test_setup(test_out_of_range_flags_but_never_alters, setup),
+		cmocka_unit_test_setup(test_range_flag_clears_when_back_inside, setup),
+		cmocka_unit_test_setup(test_range_is_checked_after_scale_and_offset, setup),
+		cmocka_unit_test_setup(test_bad_reading_is_not_out_of_range, setup),
+		cmocka_unit_test_setup(test_format_applies_precision_and_unit, setup),
+		cmocka_unit_test_setup(test_format_without_precision_keeps_the_token, setup),
+		cmocka_unit_test_setup(test_format_shows_no_reading_for_gaps, setup),
+		cmocka_unit_test_setup(test_stale_action_decides_what_is_shown, setup),
+		cmocka_unit_test_setup(test_format_of_a_text_channel, setup),
+		cmocka_unit_test_setup(test_format_never_overruns_a_small_buffer, setup),
+		cmocka_unit_test_setup(test_read_def_returns_the_definition, setup),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

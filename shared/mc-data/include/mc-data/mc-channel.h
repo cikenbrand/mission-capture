@@ -60,6 +60,13 @@ extern "C" {
 /* Longest raw token kept per value, excluding the terminator. */
 #define MC_TEXT_MAX 64
 
+/* Longest unit string, e.g. "m", "deg", "mg/L". */
+#define MC_UNIT_MAX 15
+
+/* Shown in place of a reading that cannot be displayed. Deliberately not a
+ * number: a gap must never be mistakeable for a measurement. */
+#define MC_NO_READING "--"
+
 typedef enum {
 	MC_QUALITY_GOOD,   /* fresh, parsed cleanly */
 	MC_QUALITY_STALE,  /* no update within stale_timeout_ms */
@@ -83,7 +90,20 @@ typedef struct {
 	uint64_t wall_ns;           /* UTC wall clock at receive, for the sidecar log */
 	mc_quality_t quality;       /* resolved on read, not at publish */
 	uint64_t seq;               /* monotonic update counter, per channel */
+
+	/*
+	 * The reading parsed cleanly but fell outside the channel's configured
+	 * envelope. Separate from `quality` on purpose: freshness and plausibility
+	 * are different questions, and a reading can be stale AND out of range.
+	 * An enum could not say both.
+	 */
+	bool out_of_range;
 } mc_value_t;
+
+typedef enum {
+	MC_STALE_SHOW,  /* keep the last reading on screen, flagged stale */
+	MC_STALE_BLANK, /* replace it with MC_NO_READING */
+} mc_stale_action_t;
 
 typedef struct {
 	char name[MC_NAME_MAX + 1];
@@ -97,6 +117,34 @@ typedef struct {
 	/* Nothing for this long means the reading is no longer trustworthy. Zero
 	 * disables the check, for a channel that legitimately updates rarely. */
 	uint64_t stale_timeout_ms;
+
+	/* What a stale reading should look like. Showing the last value greyed is
+	 * usually right; blanking suits a channel where an old number would be
+	 * actively misleading rather than merely old. */
+	mc_stale_action_t stale_action;
+
+	/*
+	 * Plausible envelope. Applied after scale and offset, per the pipeline
+	 * order parse -> scale -> offset -> clamp -> precision.
+	 *
+	 * The value is FLAGGED, never altered. Clipping a 900 m depth to a
+	 * configured maximum of 500 would write a number the instrument never
+	 * reported into the sidecar log and onto a client deliverable, and nothing
+	 * downstream could tell it had been invented. The envelope says "this
+	 * looks wrong", which is a different claim from "this is what was read".
+	 */
+	bool has_range;
+	double min;
+	double max;
+
+	/* Decimal places for display only. The stored value and the sidecar log
+	 * always keep full precision. `has_precision` false shows the raw token as
+	 * it arrived, which is what a survey system's own formatting intended. */
+	bool has_precision;
+	int precision;
+
+	/* Appended by the overlay and used as a CSV column header suffix. */
+	char unit[MC_UNIT_MAX + 1];
 } mc_channel_def_t;
 
 typedef struct mc_registry mc_registry_t;
@@ -147,6 +195,23 @@ size_t mc_registry_snapshot(mc_registry_t *registry, char names[][MC_NAME_MAX + 
 
 /* Forgets every channel. Test support, and a Job switch later. */
 void mc_registry_clear(mc_registry_t *registry);
+
+/* Retrieves a channel's definition -- the overlay needs its unit, the CSV
+ * writer needs it for a column header. False if never declared. */
+bool mc_registry_read_def(mc_registry_t *registry, const char *name, mc_channel_def_t *out);
+
+/*
+ * Formats a channel for display: precision and unit applied, stale behaviour
+ * honoured, MC_NO_READING written for anything that cannot be shown as a
+ * measurement.
+ *
+ * This is display only. Nothing here reaches the sidecar log, which keeps the
+ * full-precision value and the raw token.
+ *
+ * Returns the number of characters written, excluding the terminator. Writes
+ * nothing and returns 0 if the channel was never declared.
+ */
+size_t mc_registry_format(mc_registry_t *registry, const char *name, bool with_unit, char *out, size_t out_size);
 
 #ifdef __cplusplus
 }

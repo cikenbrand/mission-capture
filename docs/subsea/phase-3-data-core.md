@@ -255,6 +255,38 @@ Per channel, applied in this order: **parse → scale → offset → clamp → p
 
 **Test:** folded into `test_mc_parser.c`.
 
+#### As built
+
+Extends `mc_channel_def_t` rather than adding a module — these are properties of a channel, and
+scale/offset already lived there from 3.1.
+
+- **The range is FLAGGED, never applied.** "Clamp with an out-of-range quality flag rather than
+  silent clipping" is read here as *do not alter the number at all*. Clipping a 900 m depth to a
+  configured 500 would put a reading the instrument never reported into the sidecar log and onto a
+  client deliverable, with nothing downstream able to tell it had been invented. The envelope
+  asserts "this looks wrong", which is a different claim from "this is what was measured". **If
+  the intent was true clipping, this is the line to change** — it is one branch in
+  `mc_registry_publish`, and three tests assert the current behaviour.
+- **`out_of_range` is a separate bool, not a fifth quality value.** Freshness and plausibility are
+  independent questions, and a reading can be stale *and* implausible; an enum could not say both.
+- **Range is checked after scale and offset**, per the specified pipeline order, so the envelope is
+  configured in display units rather than raw counts.
+- **Precision is display-only**, via `mc_registry_format()`. The stored value and the raw token keep
+  full precision, because the sidecar log is what a client receives.
+- **With no precision configured, the raw token is shown.** A survey system that wrote `12.30` meant
+  the trailing zero; reformatting to `12.3` quietly claims less confidence than was reported.
+- **`stale_action`** chooses between keeping the last reading on screen for the overlay to grey out,
+  and blanking it — the right answer differs per channel.
+- **Gaps render `MC_NO_READING` (`--`), never a number.** NODATA and BAD must not be displayable as
+  a measurement.
+
+**Verified, not assumed:** an implementation that silently clips to the envelope fails three tests
+across both suites.
+
+**Test placement:** the end-to-end pipeline-order test (parse → scale → offset → clamp → precision,
+through the real parser) is in `test_mc_parser.c` as the plan specifies. The per-transform unit
+tests are in `test_mc_channel.c`, where the registry they belong to is tested.
+
 ---
 
 ### 3.5 — Simulator transport

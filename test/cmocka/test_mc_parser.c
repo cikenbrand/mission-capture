@@ -622,6 +622,70 @@ static void test_nmea_truncated_sentence(void **state)
 	mc_parser_destroy(parser);
 }
 
+/* --- 3.4: the whole pipeline, in order ---------------------------------- */
+
+static void test_parse_scale_offset_clamp_precision(void **state)
+{
+	(void)state;
+
+	/*
+	 * The full order the plan specifies, end to end through the real parser
+	 * rather than by publishing directly:
+	 *
+	 *   parse -> scale -> offset -> clamp -> precision
+	 *
+	 * The device reports depth in centimetres above a datum 2 m below the
+	 * surface. 45000 cm scaled by 0.01 is 450 m, offset by -2 is 448 m, inside
+	 * a 0..500 envelope, displayed to one decimal with a unit.
+	 */
+	mc_channel_def_t def;
+	memset(&def, 0, sizeof(def));
+	strncpy(def.name, "Depth", MC_NAME_MAX);
+	def.scale = 0.01;
+	def.offset = -2.0;
+	def.has_range = true;
+	def.min = 0.0;
+	def.max = 500.0;
+	def.has_precision = true;
+	def.precision = 1;
+	strncpy(def.unit, "m", MC_UNIT_MAX);
+	assert_true(mc_registry_declare(mc_registry_get(), &def));
+
+	mc_parser_config_t cfg;
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.type = MC_PARSER_DELIMITED;
+	cfg.separator[0] = ',';
+	cfg.separator_len = 1;
+	cfg.trim = true;
+	map_field(&cfg, 1, "Depth", true);
+
+	mc_parser_t *parser = mc_parser_create(&cfg);
+	assert_non_null(parser);
+
+	feed(parser, "12:01,45000,1.3,2.1");
+
+	mc_value_t value = read_channel("Depth");
+	assert_float_equal(value.numeric, 448.0, 0.0001);
+	assert_false(value.out_of_range);
+	assert_int_equal(value.quality, MC_QUALITY_GOOD);
+
+	/* The raw token survives the whole pipeline untouched -- it is what the
+	 * wire said, and the sidecar log wants exactly that. */
+	assert_string_equal(value.text, "45000");
+
+	char shown[32];
+	assert_true(mc_registry_format(mc_registry_get(), "Depth", true, shown, sizeof(shown)) > 0);
+	assert_string_equal(shown, "448.0 m");
+
+	/* An implausible reading is flagged, and still reported honestly. */
+	feed(parser, "12:02,90000,1.3,2.1");
+	value = read_channel("Depth");
+	assert_float_equal(value.numeric, 898.0, 0.0001);
+	assert_true(value.out_of_range);
+
+	mc_parser_destroy(parser);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
@@ -647,6 +711,7 @@ int main(void)
 		cmocka_unit_test_setup(test_nmea_missing_checksum, setup),
 		cmocka_unit_test_setup(test_nmea_empty_field_is_bad, setup),
 		cmocka_unit_test_setup(test_nmea_truncated_sentence, setup),
+		cmocka_unit_test_setup(test_parse_scale_offset_clamp_precision, setup),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

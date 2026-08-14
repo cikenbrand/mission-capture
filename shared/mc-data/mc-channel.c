@@ -21,6 +21,7 @@
 #include <util/threading.h>
 
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 
 /*
@@ -151,8 +152,18 @@ void mc_registry_publish(mc_registry_t *registry, const char *name, double numer
 	 * garbage, which is worse than an obvious gap. */
 	if (quality == MC_QUALITY_BAD || isnan(numeric)) {
 		channel->value.numeric = NAN;
+		channel->value.out_of_range = false;
 	} else {
-		channel->value.numeric = numeric * channel->def.scale + channel->def.offset;
+		const double scaled = numeric * channel->def.scale + channel->def.offset;
+		channel->value.numeric = scaled;
+
+		/*
+		 * Flagged, never altered. Clipping to the configured maximum would put
+		 * a number the instrument never reported into the recording, and
+		 * nothing downstream could tell it had been invented.
+		 */
+		channel->value.out_of_range = channel->def.has_range &&
+					      (scaled < channel->def.min || scaled > channel->def.max);
 	}
 
 	if (text) {
@@ -248,6 +259,82 @@ size_t mc_registry_snapshot(mc_registry_t *registry, char names[][MC_NAME_MAX + 
 
 	pthread_mutex_unlock(&registry->mutex);
 	return written;
+}
+
+bool mc_registry_read_def(mc_registry_t *registry, const char *name, mc_channel_def_t *out)
+{
+	if (!registry || !name || !out) {
+		return false;
+	}
+
+	pthread_mutex_lock(&registry->mutex);
+
+	const struct mc_channel *channel = find_channel(registry, name);
+	if (channel) {
+		*out = channel->def;
+	}
+
+	pthread_mutex_unlock(&registry->mutex);
+	return channel != NULL;
+}
+
+size_t mc_registry_format(mc_registry_t *registry, const char *name, bool with_unit, char *out, size_t out_size)
+{
+	if (!registry || !name || !out || out_size == 0) {
+		return 0;
+	}
+
+	pthread_mutex_lock(&registry->mutex);
+
+	struct mc_channel *channel = find_channel(registry, name);
+	if (!channel) {
+		pthread_mutex_unlock(&registry->mutex);
+		return 0;
+	}
+
+	const mc_channel_def_t def = channel->def;
+	mc_value_t value = channel->value;
+	value.quality = effective_quality(channel, os_gettime_ns());
+
+	pthread_mutex_unlock(&registry->mutex);
+
+	/* Nothing showable. A gap must never look like a measurement. */
+	const bool blank = value.quality == MC_QUALITY_NODATA || value.quality == MC_QUALITY_BAD ||
+			   (value.quality == MC_QUALITY_STALE && def.stale_action == MC_STALE_BLANK);
+
+	if (blank) {
+		const int n = snprintf(out, out_size, "%s", MC_NO_READING);
+		return n < 0 ? 0 : (size_t)n;
+	}
+
+	int written;
+	if (isnan(value.numeric)) {
+		/* A text channel -- a timestamp, a status word. Precision means
+		 * nothing here, so the token stands as it arrived. */
+		written = snprintf(out, out_size, "%s", value.text);
+	} else if (def.has_precision) {
+		written = snprintf(out, out_size, "%.*f", def.precision, value.numeric);
+	} else {
+		/* No precision configured: the survey system's own formatting is the
+		 * best guide to how many digits it believes in. */
+		written = snprintf(out, out_size, "%s", value.text);
+	}
+
+	if (written < 0) {
+		out[0] = '\0';
+		return 0;
+	}
+
+	size_t used = (size_t)written < out_size ? (size_t)written : out_size - 1;
+
+	if (with_unit && def.unit[0] && used + 1 < out_size) {
+		const int extra = snprintf(out + used, out_size - used, " %s", def.unit);
+		if (extra > 0) {
+			used += (size_t)extra < out_size - used ? (size_t)extra : out_size - used - 1;
+		}
+	}
+
+	return used;
 }
 
 void mc_registry_clear(mc_registry_t *registry)
