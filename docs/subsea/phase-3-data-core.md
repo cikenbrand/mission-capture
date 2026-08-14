@@ -302,6 +302,39 @@ tests are in `test_mc_channel.c`, where the registry they belong to is tested.
 
 Fixture files live in `tools/subsea-tests/fixtures/data/`.
 
+#### As built
+
+**The fixtures are a real capture.** `esp32-survey.txt` and `esp32-survey.timed.txt` are 32 lines
+taken off the operator's ESP32 survey simulator on COM3 at 115200 baud — five positional
+comma-separated floats, CRLF terminated. Nominally 1 Hz; actually 972–1038 ms line to line, and the
+timed fixture preserves that jitter. Code that has only ever seen exact intervals has not been
+tested against anything real.
+
+- **Time is an argument**, as in 3.2. A three-second stall and an hour of survey both cost nothing
+  to assert.
+- **Randomness is a seeded xorshift64\***, carried in the configuration. Fault injection is worth
+  nothing if a bad link cannot be reproduced exactly, on any machine, on any run. A zero seed picks
+  a fixed default rather than the clock — a test that is only sometimes the same test is not a test.
+- **A small read buffer changes the chunking and never the content.** Bytes produced but not
+  collected are kept for the next call, which is precisely the property the frame assembler was
+  built to survive.
+- **`partial_every_n` withholds the terminator as well as truncating**, so the fragment runs into
+  the following line. Emitting half a line *with* a terminator would only ever produce a short row;
+  this reproduces the mid-stream join behind OI-64 on a desk.
+- **A stall is silent, not an error.** A stalled device is indistinguishable from a slow one until
+  something times out, and that ambiguity is the situation worth reproducing.
+- **The rate note:** the device runs at 1 Hz, an order of magnitude below the 10 Hz the phase
+  assumes. Harmless for these tests, and flagged so the discrepancy is a known quantity rather than
+  a surprise at Phase 5.
+
+**End to end, on data nobody wrote by hand.** The last test drives the real capture through
+simulator → frame assembler → parser → registry in seven-byte chunks: 32 frames, 32 rows, zero
+short rows, zero bad fields, `Depth` landing at about 12.9 m, in range, formatted with its unit.
+This is the first proof in Phase 3 that the pieces fit together on bytes a device actually sent.
+
+**Verified, not assumed:** discarding the unread remainder of a produced line fails both the
+chunking-invariance test and the end-to-end run.
+
 ---
 
 ### 3.6 — Configuration persistence

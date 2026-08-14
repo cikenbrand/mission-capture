@@ -16,6 +16,8 @@ target_sources(
     include/mc-data/mc-frame.h
     mc-parser.c
     include/mc-data/mc-parser.h
+    mc-sim.c
+    include/mc-data/mc-sim.h
 )
 
 target_include_directories(mc-data PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")

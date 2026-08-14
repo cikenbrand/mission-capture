@@ -57,3 +57,8 @@ add_obs_cmocka_test(test_os_path)
 add_obs_cmocka_test(test_mc_channel OBS::mc-data)
 add_obs_cmocka_test(test_mc_frame OBS::mc-data)
 add_obs_cmocka_test(test_mc_parser OBS::mc-data)
+add_obs_cmocka_test(test_mc_sim OBS::mc-data)
+
+# The simulator fixtures are a real capture off a survey device, so the test
+# needs the source-tree path to them rather than a copy that could drift.
+target_compile_definitions(test_mc_sim PRIVATE MC_FIXTURE_DIR="${CMAKE_SOURCE_DIR}/tools/subsea-tests/fixtures/data")
